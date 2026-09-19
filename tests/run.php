@@ -43,6 +43,52 @@ function t_false($v, $msg) {
   t_ok($v === false, $msg . ($v === false ? '' : ' (got ' . var_export($v, true) . ')'));
 }
 
+// Structural HTML validation (no deps - shared-hosting friendly).
+// Returns a list of problem strings; empty = valid. Catches the bug class
+// that content-assertions miss: unbalanced tags, duplicate attributes
+// (e.g. title=".." title=".." leaking visible text), stray attribute text.
+function t_html_problems($body) {
+  $probs = array();
+  $s = preg_replace('#<(script|style)[^>]*>.*?</\1>#s', '', $body);
+  preg_match_all('#<(/?)([a-zA-Z][a-zA-Z0-9]*)[^>]*?(/?)>#', $s, $m, PREG_SET_ORDER);
+  $void = array('br' => 1, 'hr' => 1, 'img' => 1, 'input' => 1, 'meta' => 1,
+    'link' => 1, 'col' => 1);
+  $bal = array();
+  foreach ($m as $t) {
+    $tag = strtolower($t[2]);
+    if (isset($void[$tag]) || $t[3] === '/') {
+      continue;
+    }
+    if (!isset($bal[$tag])) {
+      $bal[$tag] = 0;
+    }
+    $bal[$tag] += ($t[1] === '/' ? -1 : 1);
+  }
+  foreach ($bal as $tag => $c) {
+    if ($c !== 0) {
+      $probs[] = "unbalanced <$tag> (diff $c)";
+    }
+  }
+  preg_match_all('#<([a-zA-Z][a-zA-Z0-9]*)((?:\s+[^\s>][^>]*?)?)>#', $s, $m2, PREG_SET_ORDER);
+  foreach ($m2 as $t) {
+    preg_match_all('#([\w:.-]+)\s*=#', $t[2], $am);
+    $seen = array();
+    foreach ($am[1] as $a) {
+      $a = strtolower($a);
+      if (isset($seen[$a])) {
+        $probs[] = 'duplicate attribute ' . $a . ' in ' . substr($t[0], 0, 90);
+        break;
+      }
+      $seen[$a] = 1;
+    }
+  }
+  preg_match_all('#">\s*[a-zA-Z_:][\w:.-]*="#', $s, $m3);
+  foreach ($m3[0] as $hit) {
+    $probs[] = 'leaked attribute text: ' . substr($hit, 0, 60);
+  }
+  return $probs;
+}
+
 // test-case temp dir (fresh per file, auto-removed on runner shutdown)
 function t_tmpdir() {
   $d = sys_get_temp_dir() . '/tvmtest_' . getmypid() . '_' . substr(md5(mt_rand()), 0, 6);

@@ -39,6 +39,23 @@ $b_zoom = isset($_GET['b_zoom']) && in_array((string)$_GET['b_zoom'], array('1',
   ? (string)$_GET['b_zoom']
   : ((isset($_GET['zoom']) && in_array((string)$_GET['zoom'], array('1', '2', '3'), true))
     ? (string)$_GET['zoom'] : '2');
+$b_font = isset($_GET['b_font']) && in_array((string)$_GET['b_font'], array('1', '2', '3', '4', '5'), true)
+  ? (string)$_GET['b_font']
+  : ((isset($_GET['font']) && in_array((string)$_GET['font'], array('1', '2', '3', '4', '5'), true))
+    ? (string)$_GET['font'] : '3');
+// refresh minutes, manually typed (falls back to plain ?refresh=, then default)
+$b_ref_raw = isset($_GET['b_refresh']) ? (string)$_GET['b_refresh']
+  : (isset($_GET['refresh']) ? (string)$_GET['refresh'] : null);
+if ($b_ref_raw !== null && preg_match('/^\d{1,3}$/', $b_ref_raw) && (int)$b_ref_raw <= 120) {
+  $b_ref = (string)((int)$b_ref_raw);
+} else {
+  $b_ref = (string)web_refresh_mins($CFG);
+}
+// time correction, minutes, signed (falls back to plain ?offset=, then 0)
+$b_off_raw = isset($_GET['b_offset']) ? (string)$_GET['b_offset']
+  : (isset($_GET['offset']) ? (string)$_GET['offset'] : '0');
+$b_off = (preg_match('/^-?\d{1,4}$/', $b_off_raw) && abs((int)$b_off_raw) <= 720)
+  ? (string)((int)$b_off_raw) : '0';
 
 $names = web_channel_names($pdo, $b_provider);
 $all_slugs = web_channel_slugs($pdo, $b_provider);
@@ -133,21 +150,19 @@ echo '<label>Méret: <select name="b_zoom">'
   . '<option value="2"' . ($b_zoom === '2' ? ' selected' : '') . '>Normál</option>'
   . '<option value="3"' . ($b_zoom === '3' ? ' selected' : '') . '>Nagy</option>'
   . '</select></label> ';
+echo '<label>Betűméret: <select name="b_font">'
+  . '<option value="1"' . ($b_font === '1' ? ' selected' : '') . '>Extra kicsi</option>'
+  . '<option value="2"' . ($b_font === '2' ? ' selected' : '') . '>Kicsi</option>'
+  . '<option value="3"' . ($b_font === '3' ? ' selected' : '') . '>Normál</option>'
+  . '<option value="4"' . ($b_font === '4' ? ' selected' : '') . '>Nagy</option>'
+  . '<option value="5"' . ($b_font === '5' ? ' selected' : '') . '>Extra nagy</option>'
+  . '</select></label> ';
 echo '<label><input type="checkbox" name="theme" value="dark"'
   . ($WSTATE['theme'] === 'dark' ? ' checked' : '') . '> Sötét mód</label> ';
-echo '<label>Frissítés: <select name="b_refresh">';
-$b_ref = isset($_GET['b_refresh']) ? (string)$_GET['b_refresh']
-  : ((isset($_GET['refresh']) && preg_match('/^\d{1,3}$/', (string)$_GET['refresh'])
-    && (int)$_GET['refresh'] <= 120) ? (string)$_GET['refresh']
-    : (string)web_refresh_mins($CFG));
-foreach (array('0' => 'Ki', '1' => '1 perc', '2' => '2 perc', '5' => '5 perc',
-  '10' => '10 perc', '15' => '15 perc', '30' => '30 perc') as $v => $l) {
-  // NOTE: numeric array keys arrive as int - compare stringified, or strict
-  // === never matches and the select falls back to the first option ("Ki")
-  echo '<option value="' . h($v) . '"' . ((string)$v === $b_ref ? ' selected' : '') . '>' . h($l) . '</option>';
-}
-echo '</select></label></p>';
-echo '<fieldset class="checks"><legend>Csatornák (név szerint: elől a számok)</legend>';
+echo '<label>Frissítés (perc, 0 = ki): <input type="text" name="b_refresh" size="4" value="'
+  . h($b_ref) . '"></label> ';
+echo '<label>Időkorrekció (perc): <input type="text" name="b_offset" size="5" value="'
+  . h($b_off) . '"></label></p>';
 echo '<div class="checks-grid">';
 foreach (web_sorted_channels($pdo, $b_provider) as $slug => $nm) {
   echo '<label><input type="checkbox" name="b_ch[]" value="' . h($slug) . '"'
@@ -155,14 +170,15 @@ foreach (web_sorted_channels($pdo, $b_provider) as $slug => $nm) {
     . h($nm) . '</label>';
 }
 echo '</div><div class="clear"></div>';
-echo '</fieldset>';
 echo '<p><input type="submit" value="URL mutatása"></p></form>';
 
 // ---- 4. result ----
 $bst = array('provider' => $b_provider, 'view' => $b_view,
   'zoom' => ($b_zoom === '2' ? null : $b_zoom),
+  'font' => ($b_font === '3' ? null : $b_font),
   'theme' => ($WSTATE['theme'] === 'dark' ? 'dark' : null),
-  'refresh' => ($b_ref == (string)$CFG['refresh_mins'] ? null : $b_ref));
+  'refresh' => ($b_ref == (string)$CFG['refresh_mins'] ? null : $b_ref),
+  'offset' => ($b_off !== '0' ? $b_off : null));
 $built = '';
 switch ($b_type) {
   case 'epg':

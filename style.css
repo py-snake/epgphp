@@ -48,7 +48,10 @@ a { color: #1976D2; }
 /* Channel name column sticks while scrolling right + hour row sticks while
    scrolling down (progressive enhancement; old browsers: scroll along). */
 td.tl { padding: 0; background: #ffffff; }
-table.epgtable td.chan { position: sticky; left: 0; z-index: 5; }
+table.epgtable td.chan { position: sticky; left: 0; z-index: 5; text-align: center; }
+/* full-width row separators: same line continues through name + timeline cells */
+table.epgtable td.chan, table.epgtable td.tl { border-bottom: 1px solid #e0e0e0; }
+body.dark table.epgtable td.chan, body.dark table.epgtable td.tl { border-color: #424242; }
 table.epgtable tr:first-child td { position: sticky; top: 0; z-index: 6; }
 table.epgtable tr:first-child td.chan { z-index: 7; }
 table.epg { border-collapse: collapse; width: 100%; min-width: 620px; margin: 8px 0;
@@ -56,7 +59,8 @@ table.epg { border-collapse: collapse; width: 100%; min-width: 620px; margin: 8p
 table.epg th, table.epg td { border: 1px solid #e0e0e0; padding: 6px 8px;
   font-size: 13px; vertical-align: top; text-align: left; }
 table.epg th { background: #e3f2fd; color: #0d47a1; }
-table.epg th.nowh, table.hours td.nowh { background: #fff8e1; color: #e65100; }
+table.epg th.nowh, table.hours td.nowh { background: #ffcdd2; color: #b71c1c; font-weight: bold; }
+table.hours td.nextday { color: #9e9e9e; font-style: italic; }
 td.chan { white-space: nowrap; font-weight: bold; background: #fafafa; width: 110px; }
 td.chan a { text-decoration: none; }
 td.prog { background: #ffffff; overflow: hidden; }
@@ -80,18 +84,24 @@ table.hours { border-collapse: collapse; width: 100%; }
 table.hours td { text-align: center; font-size: 12px; color: #0d47a1;
   background: #e3f2fd; border: 1px solid #e0e0e0; padding: 2px 0; }
 .prog-item { position: absolute; top: 3px; height: 64px; overflow: hidden;
-  background: #ffffff; border: 1px solid #e0e0e0; padding: 2px 4px; font-size: 14px; }
+  background: #ffffff; border: 1px solid #e0e0e0; padding: 2px 4px; font-size: 14px;
+  box-sizing: border-box; }
 .prog-item.live { background: #fff8e1; border-color: #f9a825; }
 .prog-item.past, .prog-item.past a { color: #9e9e9e; }
 .prog-item .prog-title { font-weight: bold; }
 .prog-item .prog-time { color: #757575; font-size: 12px; }
+/* card text alignment by tense: past right, live center, future left */
+.prog-item.past .prog-title, .prog-item.past .prog-time { text-align: right; }
+.prog-item.live .prog-title, .prog-item.live .prog-time { text-align: center; }
+.prog-item.future .prog-title, .prog-item.future .prog-time { text-align: left; }
 .now-marker { position: absolute; top: 0; bottom: 0; width: 3px;
   background: #d32f2f; z-index: 2; }
-/* jump target: same role as the marker band. The left margin expands the
-   reveal box so minimal-scroll parks the line ~1/3 in from EITHER side
-   (without it, jumping from the right glues the line under the sticky
-   channel column). Old browsers ignore it. */
-#now { scroll-margin-left: 30vw; }
+/* Jump target band: with scroll-margin the minimal-scroll parks the line
+   ~1/3 from the left coming from EITHER side (without it, arriving from the
+   right glues the line at the left edge, under the sticky channel column).
+   Old browsers ignore it and keep the edge behavior. Not keyboard-tabbable,
+   so no focus ring needed. */
+#now { scroll-margin-left: 30vw; outline: none; }
 
 /* vertical multi-column grid: one column per channel */
 table.vgrid { border-collapse: collapse; width: 100%; margin: 8px 0; background: #ffffff; }
@@ -171,7 +181,8 @@ body.dark table.epg, body.dark table.epgtable, body.dark table.feat { background
 body.dark .epg-fill, body.dark .epg-wrap, body.dark td.tl { background: #121212; }
 body.dark table.epg th, body.dark table.epg td, body.dark table.hours td { border-color: #424242; }
 body.dark table.epg th, body.dark table.hours td { background: #263238; color: #90caf9; }
-body.dark table.epg th.nowh, body.dark table.hours td.nowh { background: #4e342e; color: #ffcc80; }
+body.dark table.epg th.nowh, body.dark table.hours td.nowh { background: #47181c; color: #ff8a80; }
+body.dark table.hours td.nextday { color: #757575; }
 body.dark td.chan { background: #1e1e1e; }
 body.dark .tlrel { background: #1e1e1e; border-color: #424242; }
 body.dark .prog-item { background: #1e1e1e; border-color: #424242; }
@@ -199,6 +210,34 @@ body.dark .hoursan { color: #b3b3b3; }
 body.dark .age { border-color: #ef9a9a; color: #ef9a9a; }
 body.dark .nowt, body.dark .live-tag { color: #ffab40; }
 body.dark ul.chanindex li a { background: #1e1e1e; border-color: #424242; }
+
+/* Font sizes (?font=1..5, 3 = default base size). Plain overrides, old-safe. */
+body.fs1 { font-size: 11px; }
+body.fs1 .prog-item { font-size: 11px; }
+body.fs1 .prog-item .prog-time { font-size: 9px; }
+body.fs1 td.chan { font-size: 11px; }
+body.fs1 ul.progs li { font-size: 11px; }
+body.fs1 .navtab a { font-size: 10px; }
+body.fs2 { font-size: 12px; }
+body.fs2 .prog-item { font-size: 12px; }
+body.fs2 .prog-item .prog-time { font-size: 10px; }
+body.fs2 td.chan { font-size: 12px; }
+body.fs2 ul.progs li { font-size: 12px; }
+body.fs2 .navtab a { font-size: 11px; }
+body.fs4 { font-size: 17px; }
+body.fs4 .tlrel { height: 88px; }
+body.fs4 .prog-item { font-size: 17px; height: 80px; }
+body.fs4 .prog-item .prog-time { font-size: 14px; }
+body.fs4 td.chan { font-size: 15px; }
+body.fs4 ul.progs li { font-size: 16px; }
+body.fs4 .navtab a { font-size: 14px; }
+body.fs5 { font-size: 20px; }
+body.fs5 .tlrel { height: 104px; }
+body.fs5 .prog-item { font-size: 20px; height: 94px; }
+body.fs5 .prog-item .prog-time { font-size: 16px; }
+body.fs5 td.chan { font-size: 18px; }
+body.fs5 ul.progs li { font-size: 19px; }
+body.fs5 .navtab a { font-size: 16px; }
 
 /* Narrow screens (modern phones). Old browsers skip @media entirely. */
 @media (max-width: 640px) {

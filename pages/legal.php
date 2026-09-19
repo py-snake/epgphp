@@ -6,6 +6,8 @@ $doc = isset($ROUTE['doc']) ? $ROUTE['doc'] : 'adatvedelem';
 $GLOBALS['WCARRY'] = array(
   'zoom' => web_zoom_raw(),
   'refresh' => isset($_GET['refresh']) ? (string)$_GET['refresh'] : null,
+  'offset' => isset($_GET['offset']) ? (string)$_GET['offset'] : null,
+  'font' => web_font_raw(),
 );
 $viewlinks = array('h' => '/' . $doc, 'v' => '/' . $doc);
 if ($doc === 'impresszum') {

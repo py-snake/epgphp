@@ -131,6 +131,11 @@ function t_site_audit_page($body, $headers, $label) {
   t_ok(preg_match('#<title>[^<]{5,}</title>#', $body) === 1, "$label: title");
   t_ok(strpos($body, 'rel="canonical"') !== false, "$label: canonical");
   t_ok(strpos($body, 'name="viewport"') !== false, "$label: viewport meta");
+  // structural validity on every crawled page (catches markup bugs that
+  // content assertions miss, e.g. duplicated attributes leaking as text)
+  $probs = t_html_problems($body);
+  t_ok(count($probs) === 0, "$label: valid HTML"
+    . (count($probs) ? ' (' . $probs[0] . ')' : ''));
   t_ok(strpos($body, '<!-- epg-viewer') !== false, "$label: version stamp");
   // every internal link carries the site token (pure-URL state)
   preg_match_all('#href="(/[^"]*)"#', $body, $m);
@@ -250,17 +255,20 @@ function test_site_page_audits() {
   list(, $body) = t_site_curl($s['base'] . "/?$T", $code);
   t_ok(strpos($body, 'epg-wrap') !== false, 'EPG timeline wrapped (page scrolls)');
   t_ok(strpos($body, 'id="now"') !== false, 'jump anchor present');
+  t_ok(strpos($body, 'autofocus="autofocus"') !== false, 'anchor refires on every load');
   list(, $css) = t_site_curl($s['base'] . '/style.css', $code);
   t_ok(strpos($css, '@media') !== false, 'CSS has mobile @media block');
   t_ok(strpos($css, '.tablescroll') !== false, 'CSS has tablescroll rule');
   t_ok(strpos($css, '.checks-grid') !== false, 'CSS has responsive checkbox grid');
+  t_ok(strpos($css, 'box-sizing: border-box') !== false, 'CSS strips keep exact % width');
   t_ok(strpos($css, '.urlbox') !== false, 'CSS has responsive URL boxes');
-  t_ok(strpos($css, 'position: sticky') !== false, 'CSS keeps headers visible');
+  t_ok(strpos($css, 'scroll-margin-left') !== false, 'CSS offsets #now jumps');
   t_ok(strpos($css, '100dvh') !== false, 'CSS sizes app to the visible viewport');
   t_ok(strpos($css, 'tr:first-child td') !== false, 'CSS sticks the hour row');
+  t_ok(strpos($css, 'position: sticky') !== false, 'CSS keeps headers visible');
   t_ok(preg_match('/tr:first-child td[^}]*top:\s*0/', $css) === 1,
     'CSS hour row flush at box top (no covering gap)');
-  t_ok(strpos($css, 'scroll-margin-left') !== false, 'CSS offsets #now jumps');}
+}
 
 function test_site_settings_builds_urls() {
   $s = t_site_docroot();
@@ -321,6 +329,8 @@ function test_site_settings_builds_urls() {
   list(, $body) = t_site_curl($s['base'] . "/?refresh=5&$T", $code);
   t_ok(strpos($body, 'http-equiv="refresh" content="300"') !== false,
     '?refresh=5 refreshes every 5 min');
+  t_ok(preg_match('~<span class="tiny"[^>]*>\d\d:\d\d:\d\d</span>~', $body) === 0,
+    'no load-time stamp in header');
   list(, $body) = t_site_curl($s['base'] . "/tvmusor/RTL?refresh=5&$T", $code);
   t_ok(strpos($body, 'http-equiv="refresh"') !== false, 'channel page refreshes');
   list(, $body) = t_site_curl($s['base'] . '/settings?' . $T, $code);
@@ -331,10 +341,23 @@ function test_site_settings_builds_urls() {
   t_ok(strpos($body, '"dark"') !== false, 'dark body class');
   t_ok(preg_match('~name="theme"[^>]*checked~', $body) === 1,
     'checkbox reflects dark mode');
+  // font size: body class + builder select + result URL
+  list(, $body) = t_site_curl($s['base'] . "/?$T&font=5", $code);
+  t_ok(strpos($body, 'fs5') !== false, 'extra large font body class');
+  list(, $body) = t_site_curl($s['base'] . "/?$T&font=3", $code);
+  t_ok(strpos($body, 'fs1') === false && strpos($body, 'fs5') === false,
+    'default level adds no font class');
+  list(, $body) = t_site_curl($s['base'] . '/settings?' . $T . '&b_font=1&b_ch[]=RTL', $code);
+  t_ok(strpos($body, 'font=1') !== false, 'built URL carries font size');
   // refresh select honors config default (off) and explicit choice
-  t_ok(strpos($body, 'value="0" selected') !== false, 'refresh default off');
+  t_ok(preg_match('~name="b_refresh"[^>]*value="0"~', $body) === 1, 'refresh default off');
   list(, $body) = t_site_curl($s['base'] . '/settings?' . $T . '&b_refresh=15', $code);
-  t_ok(strpos($body, 'value="15" selected') !== false, 'refresh choice sticks');
+  t_ok(preg_match('~name="b_refresh"[^>]*value="15"~', $body) === 1, 'refresh choice sticks');
+  // offset input present, result URL carries it when non-zero
+  t_ok(strpos($body, 'name="b_offset"') !== false, 'offset input present');
+  list(, $body) = t_site_curl($s['base'] . '/settings?' . $T
+    . '&b_type=epg&b_ch[]=RTL&b_offset=-30', $code);
+  t_ok(strpos($body, 'offset=-30') !== false, 'result URL carries offset');
   // settings self-links keep raw refresh (provider rows, detail browser)
   list(, $body) = t_site_curl($s['base'] . '/settings?' . $T . '&refresh=5', $code);
   preg_match_all('~href="([^"]*(?:b_provider|b_type=detail)[^"]*)"~', $body, $mm);

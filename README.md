@@ -118,6 +118,7 @@ Rewrite nélkül: `/?p=/tvmusor/RTL&token=…`.
 |---|---|
 | `403` mindenhol | rossz/hiányzó `?token=` (privát példány) |
 | `409 {"status":"busy"}` | már fut egy import, várj 1 percet |
+| Üres rács import közben | normális átmenet volt: az olvasók most 30 mp-ig várnak a zárolásra (`busy_timeout`), nem adnak üres oldalt |
 | `partial` az importban | egyik feed döglött — `providers.<id>.error` mutatja, a többi OK |
 | Üres oldal / 503 | nincs DB: futtasd az import URL-t (lásd fent) |
 | Régi kód fut | view-source végén: `<!-- epg-viewer VERZIÓ -->` |

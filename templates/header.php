@@ -18,12 +18,14 @@
 <meta property="og:image" content="<?php echo h($page['og_image']); ?>">
 <?php endif; ?>
 <script type="application/ld+json">{"@context":"http://schema.org","@type":"WebSite","name":"EPG"}</script>
-<link rel="stylesheet" type="text/css" href="<?php echo h(web_asset('/style.css')); ?>">
+<link rel="stylesheet" type="text/css" href="<?php echo h(web_asset('/style.css') . '?v=' . urlencode(isset($CFG['version']) ? $CFG['version'] : '1')); ?>">
 </head>
 <body<?php
 $__cls = array();
 if (!empty($page['app'])) { $__cls[] = 'app'; }
 if (isset($WSTATE['theme']) && $WSTATE['theme'] === 'dark') { $__cls[] = 'dark'; }
+$__font = web_font_raw();
+if (in_array($__font, array('1', '2', '4', '5'), true)) { $__cls[] = 'fs' . $__font; }
 if (count($__cls)) { echo ' class="' . h(implode(' ', $__cls)) . '"'; }
 ?>>
 <div class="topnav">

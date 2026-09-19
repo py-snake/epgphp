@@ -225,6 +225,34 @@ function test_epg_meta_usable_on_fresh_db() {
     'error recording works on fresh db');
 }
 
+function test_epg_busy_timeout() {
+  // readers must survive a concurrent import write-lock instead of
+  // instantly failing (which the frontend mistook for "no data")
+  $d = t_tmpdir();
+  $db = $d . '/t.sqlite';
+  $writer = epg_open_db($db);
+  epg_init_provider_schema($writer, 't');
+  $reader = epg_open_db($db);
+  t_eq((int)$reader->query("PRAGMA busy_timeout")->fetchColumn(), 30000,
+    'busy timeout armed on open');
+  $writer->exec('BEGIN EXCLUSIVE'); // what COMMIT/VACUUM hold: blocks readers
+  $writer->exec("INSERT INTO programs_t (channel,start_utc,stop_utc,title)"
+    . " VALUES ('RTL',1,2,'X')");
+  $impatient = new PDO('sqlite:' . $db);
+  $impatient->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+  $impatient->exec('PRAGMA busy_timeout = 0');
+  $busy = false;
+  try {
+    $impatient->query('SELECT COUNT(*) FROM programs_t')->fetchColumn();
+  } catch (Exception $e) {
+    $busy = stripos($e->getMessage(), 'locked') !== false;
+  }
+  t_true($busy, 'zero-timeout reader hits the lock (the old failure mode)');
+  $writer->exec('ROLLBACK');
+  t_eq((int)$reader->query("SELECT COUNT(*) FROM programs_t")->fetchColumn(), 0,
+    'reader works after release');
+}
+
 function test_epg_bad_provider_rejected() {  list($pdo) = t_test_db();
   $thrown = false;
   try {

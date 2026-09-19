@@ -12,6 +12,8 @@ list($row, $used) = web_find_programme($pdo, $CFG, $slug, $start);
 $GLOBALS['WCARRY'] = array(
   'zoom' => web_zoom_raw(),
   'refresh' => isset($_GET['refresh']) ? (string)$_GET['refresh'] : null,
+  'offset' => isset($_GET['offset']) ? (string)$_GET['offset'] : null,
+  'font' => web_font_raw(),
 );
 $self = $row ? detail_path($slug, $start) : '/';
 $viewlinks = array('h' => $self, 'v' => $self);
@@ -31,7 +33,7 @@ $page = array(
   'h1' => $row['title'],
 );
 
-$now = time();
+$now = epg_now();
 $cls = epg_classify($row['start_utc'], $row['stop_utc'], $now);
 echo '<div class="detail">';
 echo '<h2>' . h($row['title']) . age_badge($row['rating']) . '</h2>';

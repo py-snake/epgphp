@@ -38,6 +38,17 @@ function epg_json($data) {
     JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
 
+// Server-time correction: ?offset=N shifts "now" by N minutes (signed,
+// max +-12h) for every live computation (status, now-line, labels) - in case
+// the PHP clock is off. Garbage falls back to uncorrected time.
+function epg_now() {
+  $off = 0;
+  if (isset($_GET['offset']) && preg_match('/^-?\d{1,4}$/', (string)$_GET['offset'])) {
+    $off = max(-720, min(720, (int)$_GET['offset']));
+  }
+  return time() + $off * 60;
+}
+
 function epg_open_db($dsn_or_path) {
   if (strpos($dsn_or_path, ':') === false) {
     // plain path -> SQLite file
@@ -50,6 +61,11 @@ function epg_open_db($dsn_or_path) {
   // native prepares off for old MySQL compat; harmless on SQLite
   if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
     $pdo->exec("SET NAMES utf8mb4");
+  } else {
+    // Wait (instead of instantly failing) when a cron import holds the
+    // write lock: without this, page views DURING the nightly import get
+    // SQLITE_BUSY, which the frontend mistakes for "no data" (empty guide).
+    $pdo->exec("PRAGMA busy_timeout = 30000");
   }
   return $pdo;
 }

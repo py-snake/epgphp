@@ -159,8 +159,55 @@ function test_epg_fullday_timeline() {
   t_ok(strpos($html, 'nowt') !== false, 'header carries now time tag');
 }
 
-function test_web_zoom() {
+function test_epg_twodays_timeline() {
+  require_once dirname(__DIR__) . '/pages/_render.php';
+  t_web_globals(array('site_token' => ''), array());
+  $T = function ($h, $m) {
+    return gmmktime($h, $m, 0, 9, 18, 2026) - 7200;
+  };
+  $mk = function ($t, $s, $e) use ($T) {
+    return array('start_utc' => $T($s[0], $s[1]), 'stop_utc' => $T($e[0], $e[1]),
+      'title' => $t, 'subtitle' => '', 'descr' => '', 'category' => '',
+      'rating' => '', 'star' => '', 'icon' => '', 'year' => '', 'episode' => '');
+  };
+  $tm = $mk('T2', array(1, 0), array(2, 0));
+  $tm['start_utc'] += 86400;
+  $tm['stop_utc'] += 86400;
+  $html = epg_table_h(
+    array('RTL' => array($mk('M', array(22, 0), array(23, 30)), $tm)),
+    array('RTL' => 'RTL'), $T(11, 30), '2026-09-18', 2);
+  // 48 hour cells, tomorrow dimmed + dated at its midnight
+  t_eq(substr_count($html, 'class="nextday"'), 24, 'tomorrow cells marked');
+  t_ok(strpos($html, '09-19') !== false, 'tomorrow date labeled');
+  // tomorrow 01:00 sits past the middle: (25*60)/2880 = 52.08%
+  // (matched on the div tag itself, so it cannot span into neighbours)
+  if (preg_match('#style="left:([\d.]+)%;width:([\d.]+)%;" title="01:00-02:00#',
+    $html, $m)) {
+    t_ok(abs((float)$m[1] - 52.08) < 0.03, 'tomorrow show past middle (got ' . $m[1] . ')');
+  } else {
+    t_ok(false, 'tomorrow show rendered');
+  }
+}
+
+function test_web_font() {
   t_web_globals(array(), array());
+  t_eq(web_font_raw(), null, 'absent = default');
+  foreach (array('1', '2', '3', '4', '5') as $lv) {
+    t_web_globals(array(), array('font' => $lv));
+    t_eq(web_font_raw(), $lv, "level $lv valid");
+  }
+  t_web_globals(array(), array('font' => '9'));
+  t_eq(web_font_raw(), null, 'garbage ignored');
+  // carried in links when set (via WCARRY, like home/channel pages do)
+  t_web_globals(array(), array());
+  $GLOBALS['WCARRY'] = array();
+  t_ok(strpos(u('/x'), 'font=') === false, 'default dropped from URLs');
+  t_web_globals(array(), array('font' => '1'));
+  $GLOBALS['WCARRY'] = array('font' => web_font_raw());
+  t_ok(strpos(u('/x'), 'font=1') !== false, 'small carried in URLs');
+}
+
+function test_web_zoom() {  t_web_globals(array(), array());
   t_eq(web_zoom_px(), 6000, 'default zoom 6000px');
   t_web_globals(array(), array('zoom' => '1'));
   t_eq(web_zoom_px(), 3600, 'zoom 1 = 3600px');
@@ -278,6 +325,8 @@ function test_epg_vertical_levels() {
     'large: description shown');
   // tooltip like the horizontal view
   t_ok(strpos($html, 'title="') !== false, 'hover tooltip present');
+  // regression: no duplicated title attribute leaking as visible text
+  t_ok(strpos($html, '"> title="') === false, 'no stray title text');
 }
 
 function test_web_abs_built() {
@@ -291,6 +340,41 @@ function test_web_abs_built() {
   $base_url = 'https://example.com';
   t_eq(web_abs_built($cfg, $base_url, '/?ch=RTL'),
     'https://example.com/?ch=RTL', 'root install intact');
+}
+
+function test_web_merge_days() {
+  $mk = function ($s) {
+    return array('start_utc' => $s, 'stop_utc' => $s + 100, 'title' => 'T' . $s);
+  };
+  // overlapping 00:00-04:00 region appears in both day queries
+  $g1 = array('RTL' => array($mk(100), $mk(200)), 'TV2' => array($mk(150)));
+  $g2 = array('RTL' => array($mk(200), $mk(300)), 'M1' => array($mk(250)));
+  $m = web_merge_days($g1, $g2);
+  t_eq(array_keys($m), array('RTL', 'TV2', 'M1'), 'channels merged');
+  $starts = array();
+  foreach ($m['RTL'] as $r) {
+    $starts[] = $r['start_utc'];
+  }
+  t_eq($starts, array(100, 200, 300), 'overlap deduped + sorted');
+}
+
+function test_html_validator_catches_real_bugs() {
+  // the exact historical shape: duplicate title INSIDE the tag plus the
+  // leaked copy as visible text right after it
+  $bad = '<ul class="progs"><li class="past" title="22:00 Show"> title="22:00 Show">22:00 T</li></ul>';
+  $probs = t_html_problems($bad);
+  $joined = implode(';', $probs);
+  t_ok(strpos($joined, 'leaked attribute text') !== false, 'leaked text detected');
+  // duplicate attributes inside one tag are also flagged
+  $probs = t_html_problems('<li title="a" title="b">T</li>');
+  $joined = implode(';', $probs);
+  t_ok(strpos($joined, 'duplicate attribute') !== false, 'dupe attr detected');
+  // unbalanced tags
+  $probs = t_html_problems('<div><table><tr><td>x</td></tr>');
+  t_ok(count($probs) > 0, 'unbalanced table detected');
+  // clean markup passes silently
+  t_eq(t_html_problems('<div><p><a href="/x">T</a><br><img src="i.png"></p></div>'),
+    array(), 'valid markup passes');
 }
 
 function test_web_subfolder_mode() {  // domain root: unchanged behavior

@@ -20,6 +20,8 @@ $name = isset($names[$slug]) ? $names[$slug] : $slug;
 $GLOBALS['WCARRY'] = array(
   'zoom' => web_zoom_raw(),
   'refresh' => isset($_GET['refresh']) ? (string)$_GET['refresh'] : null,
+  'offset' => isset($_GET['offset']) ? (string)$_GET['offset'] : null,
+  'font' => web_font_raw(),
 );
 $self = channel_path($slug, $date === web_today() ? null : $date);
 $viewlinks = array('h' => $self, 'v' => $self);
@@ -40,7 +42,7 @@ $base_cb = function ($d) use ($slug) {
 echo render_datenav($base_cb, $date);
 
 list($groups) = epg_front_day($pdo, $CFG, $date, array($slug), $WSTATE['provider']);
-$now = time();
+$now = epg_now();
 if ($WSTATE['view'] === 'v') {
   echo epg_list_v($groups, $names, $now);
 } else {

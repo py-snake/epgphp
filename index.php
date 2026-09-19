@@ -33,6 +33,11 @@ try {
   exit;
 }
 
+// Effective provider: wanted one if imported, else first healthy feed.
+// (A default pointing at empty tables must not 404 the whole site.)
+$WSTATE['provider'] = web_resolve_provider($pdo, $CFG, $WSTATE['provider']);
+$GLOBALS['WSTATE'] = $WSTATE;
+
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
 $base_url = isset($CFG['base_url']) && $CFG['base_url'] !== ''

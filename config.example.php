@@ -47,7 +47,7 @@ return array(
   'fetch_timeout' => 60,
 
   // --- frontend defaults ---
-  'default_provider' => 'ripper',
+  'default_provider' => 'iptvepg',
   'tz'            => 'Europe/Budapest',
   // browser auto-refresh of guide pages, minutes (meta refresh, no JS).
   // 0 = off; ?refresh=N overrides per URL (0..120). Pick in /settings.
@@ -55,5 +55,5 @@ return array(
 
   // --- release stamp (view-source check: <!-- epg-viewer ... -->) ---
   // Bump on every upload so a mixed/partial deploy is visible immediately.
-  'version'       => '6.6-20260918',
+  'version'       => '8.6-20260919',
 );

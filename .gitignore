@@ -1,5 +1,5 @@
 # live secret - copy config.example.php to create it, never commit
-config.php
+/config.php
 
 # runtime data (sqlite, logs, locks, compressed snapshots)
 /var/*.sqlite

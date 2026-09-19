@@ -48,8 +48,14 @@ function u($path, array $params = array(), $state = null, $frag = null) {
   if (isset($st['refresh']) && $st['refresh'] !== null && $st['refresh'] !== '') {
     $q['refresh'] = (string)$st['refresh'];
   }
+  if (isset($st['offset']) && $st['offset'] !== null && $st['offset'] !== '' && $st['offset'] !== '0') {
+    $q['offset'] = (string)$st['offset'];
+  }
   if (isset($st['zoom']) && $st['zoom'] !== null) {
     $q['zoom'] = $st['zoom']; // explicit $params / WCARRY may still override
+  }
+  if (isset($st['font']) && in_array($st['font'], array('1', '2', '4', '5'), true)) {
+    $q['font'] = $st['font']; // 3 = default, dropped
   }
   // page-level carry: filter state (ch/date/cat/h/...) the router wants kept
   // on every link. Explicit $params win; null drops the key.
@@ -136,6 +142,30 @@ function web_asset($p) {
   return web_base($GLOBALS['CFG']) . $p;
 }
 
+// Effective provider: the wanted one if it actually has channels imported,
+// else the first enabled provider with data (never 404 on a healthy DB just
+// because the default/selected feed is empty for it).
+function web_provider_has_channels(PDO $pdo, $provider) {
+  try {
+    list($t_chan) = epg_provider_tables($provider);
+    return (int)$pdo->query("SELECT COUNT(*) FROM $t_chan")->fetchColumn() > 0;
+  } catch (Exception $e) {
+    return false;
+  }
+}
+
+function web_resolve_provider(PDO $pdo, array $cfg, $wanted) {
+  if (web_provider_has_channels($pdo, $wanted)) {
+    return $wanted;
+  }
+  foreach (isset($cfg['providers']) ? $cfg['providers'] : array() as $pid) {
+    if (web_provider_has_channels($pdo, $pid)) {
+      return $pid;
+    }
+  }
+  return $wanted;
+}
+
 // Absolute URL with domain, exactly once: $built comes from u() (already
 // base-prefixed), $base_url already contains the base - strip one copy.
 function web_abs_built(array $cfg, $base_url, $built) {
@@ -158,7 +188,14 @@ function web_valid_date($s) {
   return web_today();
 }
 
-// Timeline zoom: pixel width of the whole 24h strip (?zoom=1|2|3).
+// Font size level (?font=1..5, default 3 = previous base size).
+// null = default, carried raw.
+function web_font_raw() {
+  if (isset($_GET['font']) && in_array((string)$_GET['font'], array('1', '2', '3', '4', '5'), true)) {
+    return (string)$_GET['font'];
+  }
+  return null;
+}
 // Wide enough that a bottom scrollbar appears and shows stay readable.
 function web_zoom_raw() {
   if (isset($_GET['zoom']) && in_array((string)$_GET['zoom'], array('1', '2', '3'), true)) {
@@ -167,6 +204,7 @@ function web_zoom_raw() {
   return null;
 }
 
+// Timeline zoom: pixel width of the whole 24h strip (?zoom=1|2|3).
 function web_zoom_px() {
   $z = web_zoom_raw();
   if ($z === '1') {
@@ -208,7 +246,7 @@ function web_hm($ts) {
 }
 
 function web_now_text() {
-  return 'Most: ' . date('H:i');
+  return 'Most: ' . date('H:i', epg_now());
 }
 
 // Channel slugs from ?ch=CSV and ?ch[]= (form). Returns array of valid SLUGs.
@@ -334,6 +372,35 @@ function web_default_channels(PDO $pdo, $provider, $n = 12) {
   } catch (Exception $e) {
   }
   return array_slice(web_channel_slugs($pdo, $provider), 0, $n);
+}
+
+// Merge two day-groups (today + tomorrow): dedupe by (channel, start_utc),
+// because the day windows overlap (00:00 -> +1day 04:00), then sort by start.
+function web_merge_days($g1, $g2) {
+  foreach ($g2 as $slug => $rows) {
+    if (!isset($g1[$slug])) {
+      $g1[$slug] = array();
+    }
+    $seen = array();
+    foreach ($g1[$slug] as $r) {
+      $seen[(int)$r['start_utc']] = true;
+    }
+    foreach ($rows as $r) {
+      if (!isset($seen[(int)$r['start_utc']])) {
+        $g1[$slug][] = $r;
+        $seen[(int)$r['start_utc']] = true;
+      }
+    }
+  }
+  foreach ($g1 as $slug => $rows) {
+    usort($g1[$slug], function ($a, $b) {
+      if ($a['start_utc'] === $b['start_utc']) {
+        return 0;
+      }
+      return ($a['start_utc'] < $b['start_utc']) ? -1 : 1;
+    });
+  }
+  return $g1;
 }
 
 // Category keyword map for /grid/{cat} (matches category+subtitle, accents kept).

@@ -40,7 +40,7 @@ function epg_front_day(PDO $pdo, array $cfg, $date_ymd, $ch_input, $provider = n
     $sel = array_map('strtoupper', array_map('trim', explode(',', $ch_input)));
   }
 
-  $now = time();
+  $now = epg_now();
   foreach ($chain as $pid) {
     if (!isset($defs[$pid]) && $pid !== '') {
       continue; // no such provider module

@@ -24,6 +24,8 @@ $GLOBALS['WCARRY'] = array(
   'date' => $date === web_today() ? null : $date,
   'zoom' => web_zoom_raw(),
   'refresh' => isset($_GET['refresh']) ? (string)$_GET['refresh'] : null,
+  'offset' => isset($_GET['offset']) ? (string)$_GET['offset'] : null,
+  'font' => web_font_raw(),
 );
 $viewlinks = array('h' => '/', 'v' => '/');
 
@@ -43,6 +45,15 @@ $page = array(
 );
 
 list($groups) = epg_front_day($pdo, $CFG, $date, $sel, $WSTATE['provider']);
+$days = 1;
+if ($date === web_today()) {
+  // today: append tomorrow, so both days show in one view
+  // (deduped: the two day-windows overlap 00:00 -> 04:00)
+  $tomorrow = date('Y-m-d', strtotime($date . ' +1 day'));
+  list($groups2) = epg_front_day($pdo, $CFG, $tomorrow, $sel, $WSTATE['provider']);
+  $groups = web_merge_days($groups, $groups2);
+  $days = 2;
+}
 foreach ($groups as $slug => $rows) {
   $groups[$slug] = array_values(array_filter($rows, function ($r) use ($kw) {
     return web_cat_match($r, $kw);
@@ -51,9 +62,9 @@ foreach ($groups as $slug => $rows) {
     unset($groups[$slug]);
   }
 }
-$now = time();
+$now = epg_now();
 if ($WSTATE['view'] === 'v') {
   echo epg_list_v($groups, $names, $now);
 } else {
-  echo epg_table_h($groups, $names, $now, $date);
+  echo epg_table_h($groups, $names, $now, $date, $days);
 }

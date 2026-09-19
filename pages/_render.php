@@ -62,7 +62,7 @@ function render_filter_form($action, $slugs, $sel, $names, $date) {
 
 function hidden_state_fields($skip = array()) {
   $s = '';
-  foreach (array('provider', 'view', 'token', 'cat', 'zoom', 'theme', 'refresh') as $k) {
+  foreach (array('provider', 'view', 'token', 'cat', 'zoom', 'theme', 'refresh', 'offset', 'font') as $k) {
     if (in_array($k, $skip, true)) {
       continue;
     }
@@ -130,15 +130,16 @@ function age_badge($rating) {  $rating = trim((string)$rating);
 // reveals them (no window, no JS). Rows cannot drift: every strip is anchored
 // to its own row. The now-line is one absolute marker per row at the same
 // left%, like tvmustra's .now-marker.
-function epg_table_h($groups, $names, $now, $date) {
+function epg_table_h($groups, $names, $now, $date, $days = 1) {
   if (!count($groups)) {
     return '<p>Nincs műsoradat erre a napra.</p>';
   }
+  $days = max(1, min(2, (int)$days)); // 1-day or today+tomorrow
   $tz = new DateTimeZone('Europe/Budapest');
   $mid = new DateTime($date . ' 00:00:00', $tz);
   $ws = $mid->getTimestamp();
-  $we = $ws + 86400;
-  $wlen = 86400;
+  $we = $ws + 86400 * $days;
+  $wlen = 86400 * $days;
   $in_day = (date('Y-m-d', $now) === $date);
   $in_window = ($in_day && $now >= $ws && $now < $we);
   $pos = function ($ts) use ($ws, $wlen) {
@@ -154,21 +155,32 @@ function epg_table_h($groups, $names, $now, $date) {
     // jump target: an invisible band from the now-line rightward, 66 viewport
     // widths wide. Minimal-scroll then parks the line ~1/3 from the left
     // (a wide strip alone would land its right edge at the screen edge).
-    $s .= '<div id="now" style="position:absolute;top:0;left:' . $pos($now)
+    // autofocus re-runs the jump on EVERY page load (fresh nav AND reload -
+    // plain fragments only fire on fresh navs), tabindex keeps it out of
+    // keyboard tab order. Unknown attributes are ignored by old browsers.
+    $s .= '<div id="now" tabindex="-1" autofocus="autofocus" style="position:absolute;top:0;left:' . $pos($now)
       . '%;width:66vw;height:12px;font-size:0;line-height:0;"></div>';
   }
   $s .= '<table class="epgtable" cellpadding="0" cellspacing="0">';
-  // header: 24 equal hour cells
+  // header: 24 equal hour cells per day (2nd day dimmed + dated)
+  $nh = 24 * $days;
   $now_h = (int)date('G', $now);
   $s .= '<tr><td class="chan"></td><td class="tl"><table class="hours" cellpadding="0" cellspacing="0"><tr>';
-  for ($hh = 0; $hh < 24; $hh++) {
-    $s .= '<td width="4.17%"'
-      . ($in_day && $hh === $now_h ? ' class="nowh"' : '') . '>'
-      . sprintf('%02d', $hh);
-    if ($in_window && $hh === $now_h) {
-      $s .= '<br><span class="nowt">▼ ' . h(web_hm($now)) . '</span>';
+  for ($dd = 0; $dd < $days; $dd++) {
+    $day_label = date('m-d', $ws + $dd * 86400);
+    for ($hh = 0; $hh < 24; $hh++) {
+      $s .= '<td width="' . round(100 / $nh, 2) . '%"'
+        . ($in_day && $dd === 0 && $hh === $now_h ? ' class="nowh"' : '')
+        . ($dd > 0 ? ' class="nextday"' : '') . '>'
+        . sprintf('%02d', $hh);
+      if ($dd > 0 && $hh === 0) {
+        $s .= '<br><span class="nowt">' . h($day_label) . '</span>';
+      }
+      if ($in_window && $dd === 0 && $hh === $now_h) {
+        $s .= '<br><span class="nowt">▼ ' . h(web_hm($now)) . '</span>';
+      }
+      $s .= '</td>';
     }
-    $s .= '</td>';
   }
   $s .= '</tr></table></td></tr>';
   $marker = '';
