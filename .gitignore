@@ -1,0 +1,23 @@
+# live secret - copy config.example.php to create it, never commit
+config.php
+
+# runtime data (sqlite, logs, locks, compressed snapshots)
+/var/*.sqlite
+/var/*.sqlite-wal
+/var/*.sqlite-shm
+/var/*.sqlite-journal
+/var/*.log
+/var/*.lock
+/var/backup/*.sqlite.gz
+# ...but keep the web-access protection in place
+!/var/.htaccess
+!/var/backup/.htaccess
+
+# editor / OS droppings
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

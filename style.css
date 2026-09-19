@@ -1,0 +1,221 @@
+/* EPG viewer - single CSS 2.1 stylesheet, Material light theme.
+   Tables + floats only (old browsers stay usable); rounded corners and the
+   @media block are progressive enhancement, ignored where unsupported. */
+body { background: #f5f5f5; color: #212121; font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px; margin: 0; padding: 0; }
+.wrap { width: 96%; margin: 0 auto; }
+a { color: #1976D2; }
+/* no :visited recolor anywhere on this site - visited links keep base color */
+
+/* app bar: sticks to the viewport top while the page scrolls (both axes
+   page-level now - no inner boxes). Old browsers: static bar, same look. */
+.topnav { background: #1976D2; color: #ffffff; padding: 3px 0;
+  position: sticky; top: 0; z-index: 50; }
+.topnav a { color: #ffffff; text-decoration: none; font-weight: bold; font-size: 12px; }
+.topnav a:hover { text-decoration: underline; }
+.navtab { width: 96%; }
+.navtab .brand a { font-size: 16px; font-weight: bold; letter-spacing: 1px; }
+.navtab .navlinks { text-align: right; }
+
+/* header card */
+.header { background: #1976D2; color: #ffffff; padding: 6px 0 8px 0; }
+.header a { color: #ffffff; }
+.main-title { font-size: 18px; margin: 0 0 2px 0; font-weight: normal; }
+.nowline { font-size: 13px; margin: 6px 0 0 0; }
+.content { padding: 12px 0 20px 0; }
+.section-title { font-size: 16px; font-weight: bold; color: #1565C0;
+  border-bottom: 2px solid #1976D2; padding-bottom: 4px; }
+
+/* category buttons */
+.catbar { margin: 10px 0; }
+.catbar a { display: inline-block; background: #ffffff; border: 1px solid #1976D2;
+  color: #1976D2; padding: 6px 12px; margin: 0 4px 4px 0; text-decoration: none; }
+.catbar a.active, .catbar a:hover { background: #1976D2; color: #ffffff; }
+
+/* EPG tables (cards) */
+.tablescroll { width: 100%; overflow-x: auto; }
+/* App layout (grid pages): viewport-filling, the page itself never scrolls,
+   only .epg-fill does - almost edge to edge. @supports-guarded: old browsers
+   get the classic scrolling page instead (same content, same look). */
+.epg-fill { overflow: auto; }
+@supports (display: flex) and (height: 100vh) {
+  body.app { height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+  body.app .content { flex: 1 1 auto; min-height: 0; width: auto; margin: 0;
+    padding: 6px 6px 6px 6px; display: flex; flex-direction: column; }
+  body.app .epg-fill { flex: 1 1 auto; min-height: 0; overflow: auto;
+    border: 1px solid #e0e0e0; background: #ffffff; }
+}
+/* Channel name column sticks while scrolling right + hour row sticks while
+   scrolling down (progressive enhancement; old browsers: scroll along). */
+td.tl { padding: 0; background: #ffffff; }
+table.epgtable td.chan { position: sticky; left: 0; z-index: 5; }
+table.epgtable tr:first-child td { position: sticky; top: 0; z-index: 6; }
+table.epgtable tr:first-child td.chan { z-index: 7; }
+table.epg { border-collapse: collapse; width: 100%; min-width: 620px; margin: 8px 0;
+  background: #ffffff; }
+table.epg th, table.epg td { border: 1px solid #e0e0e0; padding: 6px 8px;
+  font-size: 13px; vertical-align: top; text-align: left; }
+table.epg th { background: #e3f2fd; color: #0d47a1; }
+table.epg th.nowh, table.hours td.nowh { background: #fff8e1; color: #e65100; }
+td.chan { white-space: nowrap; font-weight: bold; background: #fafafa; width: 110px; }
+td.chan a { text-decoration: none; }
+td.prog { background: #ffffff; overflow: hidden; }
+td.prog.live { background: #fff8e1; }
+.nowt { color: #e65100; font-weight: bold; font-size: 11px; }
+td.prog.past { color: #9e9e9e; }
+td.prog.past a { color: #9e9e9e; }
+.prog .t { color: #757575; font-size: 12px; }
+.prog .live-tag { color: #e65100; font-weight: bold; }
+.age { display: inline-block; border: 1px solid #d32f2f; color: #d32f2f;
+  font-size: 11px; font-weight: bold; padding: 0 4px; margin-left: 4px; }
+.hoursan { font-size: 12px; margin: 6px 0; color: #616161; }
+
+/* horizontal timeline (tvmustra-style): relative rows, absolute % strips.
+   Positioning is fully server-side, so rows can never drift apart. */
+.epg-wrap { width: 100%; position: relative; } /* inline min-width = zoom */
+table.epgtable { border-collapse: separate; border-spacing: 0; width: 100%; background: #ffffff; }
+.tlrel { position: relative; height: 72px; overflow: hidden; background: #ffffff;
+  border-left: 1px solid #e0e0e0; }
+table.hours { border-collapse: collapse; width: 100%; }
+table.hours td { text-align: center; font-size: 12px; color: #0d47a1;
+  background: #e3f2fd; border: 1px solid #e0e0e0; padding: 2px 0; }
+.prog-item { position: absolute; top: 3px; height: 64px; overflow: hidden;
+  background: #ffffff; border: 1px solid #e0e0e0; padding: 2px 4px; font-size: 14px; }
+.prog-item.live { background: #fff8e1; border-color: #f9a825; }
+.prog-item.past, .prog-item.past a { color: #9e9e9e; }
+.prog-item .prog-title { font-weight: bold; }
+.prog-item .prog-time { color: #757575; font-size: 12px; }
+.now-marker { position: absolute; top: 0; bottom: 0; width: 3px;
+  background: #d32f2f; z-index: 2; }
+/* jump target: same role as the marker band. The left margin expands the
+   reveal box so minimal-scroll parks the line ~1/3 in from EITHER side
+   (without it, jumping from the right glues the line under the sticky
+   channel column). Old browsers ignore it. */
+#now { scroll-margin-left: 30vw; }
+
+/* vertical multi-column grid: one column per channel */
+table.vgrid { border-collapse: collapse; width: 100%; margin: 8px 0; background: #ffffff; }
+table.vgrid th { background: #e3f2fd; color: #0d47a1; border: 1px solid #e0e0e0;
+  padding: 6px 8px; font-size: 14px; }
+table.vgrid td { border: 1px solid #e0e0e0; vertical-align: top; padding: 0; }
+table.vgrid ul.progs { border: none; margin: 0; }
+ul.progs .ep { color: #616161; font-size: 12px; }
+ul.progs .epg-desc { color: #424242; font-size: 12px; }
+body.dark table.vgrid { background: #1e1e1e; }
+body.dark table.vgrid th { background: #263238; color: #90caf9; border-color: #424242; }
+body.dark table.vgrid td { border-color: #424242; }
+
+/* vertical view list (card) */
+.chanhead { background: #e3f2fd; color: #0d47a1; border: 1px solid #e0e0e0;
+  padding: 6px 10px; font-size: 15px; margin: 12px 0 0 0; }
+ul.progs { list-style: none; margin: 0 0 8px 0; padding: 0; background: #ffffff;
+  border: 1px solid #e0e0e0; border-top: none; }
+ul.progs li { padding: 6px 10px; border-top: 1px solid #eeeeee; }
+ul.progs li.live { background: #fff8e1; border-left: 4px solid #f9a825; }
+ul.progs li.past { color: #9e9e9e; }
+
+/* featured + evening */
+table.feat { border-collapse: collapse; width: 100%; min-width: 520px; margin: 8px 0;
+  background: #ffffff; }
+table.feat td { border: 1px solid #e0e0e0; padding: 8px; width: 25%; vertical-align: top; }
+.feat .t { font-size: 12px; color: #757575; }
+
+/* channel index */
+ul.chanindex { list-style: none; margin: 6px 0; padding: 0; }
+ul.chanindex li { display: inline; margin-right: 6px; line-height: 220%; }
+ul.chanindex li a { background: #ffffff; border: 1px solid #e0e0e0;
+  padding: 3px 8px; text-decoration: none; }
+ul.chanindex li a:hover { border-color: #1976D2; }
+
+/* forms (card) */
+.filterbox { border: 1px solid #e0e0e0; background: #ffffff; padding: 10px; margin: 8px 0; }
+.filterbox fieldset { border: 1px solid #e0e0e0; margin-bottom: 6px; }
+.filterbox legend { color: #1565C0; font-weight: bold; }
+.filterbox input[type=submit] { background: #1976D2; color: #ffffff; border: none;
+  padding: 6px 18px; font-weight: bold; }
+/* button-look links (old-safe: plain box, no gradients/shadows) */
+a.btn, a.btn:visited { display: inline-block; background: #1976D2; color: #ffffff;
+  border: 1px solid #1565C0; padding: 4px 10px; text-decoration: none; font-size: 13px; }
+a.btn:hover { background: #1565C0; color: #ffffff; }
+.checks label { white-space: nowrap; margin-right: 8px; line-height: 180%; }
+/* responsive checkbox grid: floats (old-safe), 4 columns desktop */
+.checks-grid label { float: left; width: 24%; white-space: normal; margin-right: 0;
+  padding: 2px 4px 2px 0; font-size: 13px; line-height: 150%; }
+.clear { clear: both; }
+
+/* detail page (card) */
+.detail { border: 1px solid #e0e0e0; background: #ffffff; padding: 12px; margin: 8px 0; }
+.detail h2 { margin-top: 0; color: #1565C0; }
+.prevnext { margin: 10px 0; }
+
+/* readonly URL boxes: full width up to 640px, never overflow on mobile.
+   max-width is CSS2 (old-safe); box-sizing ignored where unknown. */
+.urlbox { width: 100%; max-width: 640px; box-sizing: border-box; }
+
+/* footer (light) */
+.footer { background: #eeeeee; color: #616161; padding: 14px 0; font-size: 12px;
+  border-top: 1px solid #e0e0e0; }
+.footer a { color: #1976D2; }
+.tiny { font-size: 11px; }
+
+/* Dark mode (?theme=dark). Plain overrides, no variables (old-safe). */
+body.dark { background: #121212; color: #e0e0e0; }
+body.dark a { color: #90caf9; }
+body.dark .topnav { background: #0d47a1; }
+body.dark .topnav a, body.dark .topnav a:visited { color: #ffffff; }
+body.dark .header { background: #0d47a1; }
+body.dark .section-title { color: #90caf9; border-color: #90caf9; }
+body.dark .catbar a { background: #1e1e1e; border-color: #90caf9; color: #90caf9; }
+body.dark .catbar a.active, body.dark .catbar a:hover { background: #90caf9; color: #121212; }
+body.dark table.epg, body.dark table.epgtable, body.dark table.feat { background: #1e1e1e; }
+body.dark .epg-fill, body.dark .epg-wrap, body.dark td.tl { background: #121212; }
+body.dark table.epg th, body.dark table.epg td, body.dark table.hours td { border-color: #424242; }
+body.dark table.epg th, body.dark table.hours td { background: #263238; color: #90caf9; }
+body.dark table.epg th.nowh, body.dark table.hours td.nowh { background: #4e342e; color: #ffcc80; }
+body.dark td.chan { background: #1e1e1e; }
+body.dark .tlrel { background: #1e1e1e; border-color: #424242; }
+body.dark .prog-item { background: #1e1e1e; border-color: #424242; }
+body.dark .prog-item.live { background: #3e2723; border-color: #f9a825; }
+body.dark td.prog.live { background: #3e2723; }
+body.dark td.prog.past, body.dark td.prog.past a,
+body.dark .prog-item.past, body.dark .prog-item.past a,
+body.dark ul.progs li.past { color: #b3b3b3; }
+body.dark .prog-item .prog-time, body.dark .prog .t { color: #c9c9c9; }
+body.dark .chanhead { background: #263238; color: #90caf9; border-color: #424242; }
+body.dark ul.progs { background: #1e1e1e; border-color: #424242; }
+body.dark ul.progs li { border-color: #424242; }
+body.dark ul.progs li.live { background: #3e2723; }
+body.dark ul.progs .ep, body.dark ul.progs .epg-desc { color: #b3b3b3; }
+body.dark .filterbox { background: #1e1e1e; border-color: #424242; }
+body.dark .filterbox legend { color: #90caf9; }
+body.dark .filterbox input[type=text], body.dark .filterbox select,
+body.dark input.urlbox, body.dark select { background: #2c2c2c; color: #e0e0e0;
+  border: 1px solid #616161; }
+body.dark .detail { background: #1e1e1e; border-color: #424242; }
+body.dark .detail h2 { color: #90caf9; }
+body.dark .footer { background: #1e1e1e; color: #9e9e9e; border-color: #424242; }
+body.dark .footer a { color: #90caf9; }
+body.dark .hoursan { color: #b3b3b3; }
+body.dark .age { border-color: #ef9a9a; color: #ef9a9a; }
+body.dark .nowt, body.dark .live-tag { color: #ffab40; }
+body.dark ul.chanindex li a { background: #1e1e1e; border-color: #424242; }
+
+/* Narrow screens (modern phones). Old browsers skip @media entirely. */
+@media (max-width: 640px) {
+  .wrap { width: 98%; }
+  body { font-size: 15px; }
+  .main-title { font-size: 18px; }
+  .navtab .brand, .navtab .navlinks { text-align: left; }
+  .navtab .navlinks { font-size: 12px; white-space: nowrap; }
+  .navtab .brand a { font-size: 15px; }
+  .catbar a { padding: 8px 12px; }
+  table.epg th, table.epg td { font-size: 14px; padding: 6px; }
+  td.chan { width: 84px; }
+  /* dense settings: 2-column checkbox grid, tighter tables and forms */
+  .checks-grid label { width: 48%; font-size: 14px; line-height: 170%; }
+  table.epg th, table.epg td { padding: 4px 5px; }
+  .filterbox { padding: 6px; margin: 6px 0; }
+  .section-title { font-size: 15px; }
+  ul.progs input { max-width: 96%; }
+  a.btn { padding: 8px 12px; }
+}
