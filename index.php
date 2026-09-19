@@ -10,6 +10,7 @@ require __DIR__ . '/lib/providers.php';
 require __DIR__ . '/lib/epg_front.php';
 require __DIR__ . '/lib/web.php';
 
+web_no_cache();
 web_init($CFG);
 $GLOBALS['CFG'] = $CFG;
 $GLOBALS['WCARRY'] = array();

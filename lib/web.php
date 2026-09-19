@@ -13,6 +13,17 @@ function h($s) {
   return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
 
+// No-cache for every dynamic response: the EPG changes on every cron run
+// and on every minute (?refresh / meta refresh must always hit the server,
+// never serve a cached copy). HTTP/1.1 + HTTP/1.0 + old-IE covers.
+function web_no_cache() {
+  if (!headers_sent()) {
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
+  }
+}
+
 // Current shared state from query string.
 function web_state(array $cfg) {
   $providers = isset($cfg['providers']) ? $cfg['providers'] : array('ripper');

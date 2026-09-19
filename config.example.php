@@ -55,5 +55,5 @@ return array(
 
   // --- release stamp (view-source check: <!-- epg-viewer ... -->) ---
   // Bump on every upload so a mixed/partial deploy is visible immediately.
-  'version'       => '8.6-20260919',
+  'version'       => '8.7-20260919',
 );

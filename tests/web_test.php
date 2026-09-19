@@ -451,7 +451,7 @@ function t_web_docroot() {
   $root = dirname(__DIR__);
   $d = t_tmpdir() . '/webroot';
   mkdir($d, 0777, true);
-  foreach (array('lib', 'pages', 'templates', 'config') as $n) {
+  foreach (array('lib', 'pages', 'templates', 'api', 'cron', 'config') as $n) {
     if (!file_exists($root . '/' . $n)) {
       continue; // optional dir (e.g. removed empty config/)
     }
@@ -547,6 +547,8 @@ function test_web_home_nojs_nocookie() {
   $body = t_web_curl($s['base'] . '/?token=SITETEST', $code, $headers);
   t_eq($code, 200, 'home 200');
   t_false(stripos($headers, 'Set-Cookie') !== false, 'no cookies set');
+  t_ok(stripos($headers, 'no-store') !== false, 'Cache-Control: no-store');
+  t_ok(stripos($headers, 'Pragma: no-cache') !== false, 'Pragma: no-cache');
   // strip the SEO ld+json data block, then no executable traces may remain
   $stripped = preg_replace('#<script type="application/ld\+json">.*?</script>#s', '', $body);
   foreach (array('<script', 'onclick', 'onchange', 'onload', 'fetch(') as $bad) {
@@ -574,6 +576,13 @@ function test_web_views_and_routes() {
   $body = t_web_curl($s['base'] . '/sitemapxml.php?token=SITETEST', $code);
   t_eq($code, 200, 'sitemap 200');
   t_ok(strpos($body, '<urlset') !== false, 'sitemap xml body');
+  $body = t_web_curl($s['base'] . '/api/epg.php?token=SITETEST', $code, $headers);
+  t_eq($code, 200, 'api 200');
+  t_ok(stripos($headers, 'no-store') !== false, 'api no-store');
+  $body = t_web_curl($s['base'] . '/cron/status.php?token=CRONTEST', $code, $headers);
+  t_eq($code, 200, 'status 200');
+  t_ok(stripos($headers, 'no-store') !== false, 'status no-store');
+  // NOTE: cron/import.php is never curled here - it would start a live import.
   t_web_curl($s['base'] . '/?token=WRONG', $code);
   t_eq($code, 403, 'wrong site token 403');
 }
