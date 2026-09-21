@@ -187,8 +187,11 @@ function epg_table_h($groups, $names, $now, $date, $days = 1) {
   if ($in_window) {
     $marker = '<div class="now-marker" style="left:' . $pos($now) . '%;"></div>';
   }
+  $ri = 0;
   foreach ($groups as $slug => $rows) {
-    $s .= '<tr><td class="chan"><a href="' . h(u(channel_path($slug), array(), null, 'now')) . '">'
+    $zb = ($ri % 2 === 0) ? 'zb-even' : 'zb-odd';
+    $ri++;
+    $s .= '<tr class="' . $zb . '"><td class="chan"><a href="' . h(u(channel_path($slug), array(), null, 'now')) . '">'
       . h(isset($names[$slug]) ? $names[$slug] : $slug) . '</a></td>'
       . '<td class="tl"><div class="tlrel">';
     foreach ($rows as $r) {
@@ -221,8 +224,8 @@ function epg_table_h($groups, $names, $now, $date, $days = 1) {
 
 // Vertical view: ONE wide multi-column table (no wrapping). Every channel
 // is a column; with many channels the page scrolls sideways. Detail level
-// follows ?zoom=: 1 = time+title, 2 (default) = +episode/subtitle,
-// 3 = +description. Hover tooltip identical to the horizontal view.
+// follows ?zoom=: 0|1 = time+title, 2 (default) = +episode/subtitle,
+// 3|4 = +description. Hover tooltip identical to the horizontal view.
 function epg_list_v($groups, $names, $now, $zoom = null) {
   if (!count($groups)) {
     return '<p>Nincs műsoradat erre a napra.</p>';
@@ -230,20 +233,27 @@ function epg_list_v($groups, $names, $now, $zoom = null) {
   if ($zoom === null) {
     $zoom = function_exists('web_zoom_raw') ? web_zoom_raw() : null;
   }
-  $level = ($zoom === '1') ? 1 : (($zoom === '3') ? 3 : 2);
-  $minw = max(640, count($groups) * 170);
+  $level = ($zoom === '0' || $zoom === '1') ? 1 : (($zoom === '3' || $zoom === '4') ? 3 : 2);
+  $colw_px = function_exists('web_zoom_col_px') ? web_zoom_col_px($zoom) : 170;
+  $minw = max(640, count($groups) * $colw_px);
   $colw = round(100 / max(1, count($groups)), 2);
   $s = '<div class="epg-fill"><table class="vgrid" style="min-width:'
     . $minw . 'px;" cellpadding="0" cellspacing="0"><tr>';
+  $ci = 0;
   foreach ($groups as $slug => $rows) {
-    $s .= '<th width="' . $colw . '%" id="ch-' . h($slug) . '"><a href="'
+    $zb = ($ci % 2 === 0) ? 'zb-even' : 'zb-odd';
+    $ci++;
+    $s .= '<th class="' . $zb . '" width="' . $colw . '%" id="ch-' . h($slug) . '"><a href="'
       . h(u(channel_path($slug), array(), null, 'now')) . '">'
       . h(isset($names[$slug]) ? $names[$slug] : $slug) . '</a></th>';
   }
   $s .= '</tr><tr>';
   $anchor_done = false;
+  $ci = 0;
   foreach ($groups as $slug => $rows) {
-    $s .= '<td width="' . $colw . '%"><ul class="progs">';
+    $zb = ($ci % 2 === 0) ? 'zb-even' : 'zb-odd';
+    $ci++;
+    $s .= '<td class="' . $zb . '" width="' . $colw . '%"><ul class="progs">';
     foreach ($rows as $r) {
       $cls = epg_classify($r['start_utc'], $r['stop_utc'], $now);
       $anchor = '';

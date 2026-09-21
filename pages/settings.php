@@ -35,9 +35,9 @@ if (web_cat_keywords($b_cat) === false) {
 }
 $b_view = isset($_GET['b_view']) ? ((string)$_GET['b_view'] === 'v' ? 'v' : 'h')
   : ((isset($_GET['view']) && (string)$_GET['view'] === 'v') ? 'v' : 'h');
-$b_zoom = isset($_GET['b_zoom']) && in_array((string)$_GET['b_zoom'], array('1', '2', '3'), true)
+$b_zoom = isset($_GET['b_zoom']) && in_array((string)$_GET['b_zoom'], array('0', '1', '2', '3', '4'), true)
   ? (string)$_GET['b_zoom']
-  : ((isset($_GET['zoom']) && in_array((string)$_GET['zoom'], array('1', '2', '3'), true))
+  : ((isset($_GET['zoom']) && in_array((string)$_GET['zoom'], array('0', '1', '2', '3', '4'), true))
     ? (string)$_GET['zoom'] : '2');
 $b_font = isset($_GET['b_font']) && in_array((string)$_GET['b_font'], array('1', '2', '3', '4', '5'), true)
   ? (string)$_GET['b_font']
@@ -146,9 +146,11 @@ echo '<label>Nézet: <select name="b_view">'
   . '<option value="v"' . ($b_view === 'v' ? ' selected' : '') . '>Függőleges</option>'
   . '</select></label> ';
 echo '<label>Méret: <select name="b_zoom">'
+  . '<option value="0"' . ($b_zoom === '0' ? ' selected' : '') . '>Extra kicsi</option>'
   . '<option value="1"' . ($b_zoom === '1' ? ' selected' : '') . '>Kicsi</option>'
   . '<option value="2"' . ($b_zoom === '2' ? ' selected' : '') . '>Normál</option>'
   . '<option value="3"' . ($b_zoom === '3' ? ' selected' : '') . '>Nagy</option>'
+  . '<option value="4"' . ($b_zoom === '4' ? ' selected' : '') . '>Extra nagy</option>'
   . '</select></label> ';
 echo '<label>Betűméret: <select name="b_font">'
   . '<option value="1"' . ($b_font === '1' ? ' selected' : '') . '>Extra kicsi</option>'
@@ -294,3 +296,20 @@ if (!count($coverage)) {
   echo '</ul>';
 }
 echo '<p class="tiny">Verzió: ' . h(isset($CFG['version']) ? $CFG['version'] : '?') . '</p>';
+
+// ---- 7. header nav carry (templates/header.php renders AFTER this page):
+// the EPG/CSATORNÁK links (u('/')) must return to the guide with the
+// builder state, so leaving settings without pressing "Megnyitás" keeps
+// every param (provider/view/channels/date/cat/zoom/font/refresh/offset).
+// Set LAST so body links above keep their own explicit state.
+$GLOBALS['WSTATE'] = array_merge($WSTATE,
+  array('provider' => $b_provider, 'view' => $b_view));
+$GLOBALS['WCARRY'] = array(
+  'cat' => $b_cat === 'mind' ? null : $b_cat,
+  'ch' => count($b_ch) ? implode(',', $b_ch) : null,
+  'date' => $b_date === web_today() ? null : $b_date,
+  'zoom' => ($b_zoom === '2' ? null : $b_zoom),
+  'font' => ($b_font === '3' ? null : $b_font),
+  'refresh' => ($b_ref == (string)$CFG['refresh_mins'] ? null : $b_ref),
+  'offset' => ($b_off !== '0' ? $b_off : null),
+);

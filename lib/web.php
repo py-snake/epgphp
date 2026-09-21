@@ -209,22 +209,52 @@ function web_font_raw() {
 }
 // Wide enough that a bottom scrollbar appears and shows stay readable.
 function web_zoom_raw() {
-  if (isset($_GET['zoom']) && in_array((string)$_GET['zoom'], array('1', '2', '3'), true)) {
+  if (isset($_GET['zoom']) && in_array((string)$_GET['zoom'], array('0', '1', '2', '3', '4'), true)) {
     return (string)$_GET['zoom'];
   }
   return null;
 }
 
-// Timeline zoom: pixel width of the whole 24h strip (?zoom=1|2|3).
+// Timeline zoom: pixel width of the whole 24h strip (?zoom=0..4).
+// Horizontal layout width. Vertical layout uses web_zoom_col_px().
 function web_zoom_px() {
   $z = web_zoom_raw();
+  if ($z === '0') {
+    return 2400; // extra kicsi
+  }
   if ($z === '1') {
     return 3600;
   }
   if ($z === '3') {
     return 9000;
   }
+  if ($z === '4') {
+    return 12000; // extra nagy
+  }
   return 6000; // default
+}
+
+// Vertical column width per channel (?zoom=0..4). Mirrors the horizontal
+// timeline ratios so "Méret" visibly scales both layouts.
+function web_zoom_col_px($z = null) {
+  if ($z === null) {
+    $z = web_zoom_raw();
+  } else {
+    $z = (string)$z;
+  }
+  if ($z === '0') {
+    return 110; // extra kicsi
+  }
+  if ($z === '1') {
+    return 140;
+  }
+  if ($z === '3') {
+    return 210;
+  }
+  if ($z === '4') {
+    return 260; // extra nagy
+  }
+  return 170; // default (zoom=2 / unset)
 }
 
 // Effective browser-refresh, minutes. ?refresh=N wins (0..120, 0 = off),

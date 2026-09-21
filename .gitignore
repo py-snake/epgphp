@@ -13,6 +13,9 @@
 !/var/.htaccess
 !/var/backup/.htaccess
 
+# local captures / debug dumps (e.g. browser HAR files) - never commit
+*.har
+
 # editor / OS droppings
 *~
 *.swp

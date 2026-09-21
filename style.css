@@ -96,6 +96,25 @@ table.hours td { text-align: center; font-size: 12px; color: #0d47a1;
 .prog-item.future .prog-title, .prog-item.future .prog-time { text-align: left; }
 .now-marker { position: absolute; top: 0; bottom: 0; width: 3px;
   background: #d32f2f; z-index: 2; }
+/* zebra channel frames: even/odd channels get a subtle distinct frame on
+   the channel header + the currently-live programme only. Nothing else is
+   recolored, so the grid stays calm. */
+table.epgtable tr.zb-even td.chan { border-left: 3px solid #9fc3dd; border-bottom-color: #9fc3dd; }
+table.epgtable tr.zb-odd td.chan { border-left: 3px solid #bccba9; border-bottom-color: #bccba9; }
+table.epgtable tr.zb-even .prog-item.live { border-color: #d9a441; }
+table.epgtable tr.zb-odd .prog-item.live { border-color: #8aa884; }
+body.dark table.epgtable tr.zb-even td.chan { border-left-color: #3f6b8a; border-bottom-color: #3f6b8a; }
+body.dark table.epgtable tr.zb-odd td.chan { border-left-color: #5f7d5f; border-bottom-color: #5f7d5f; }
+body.dark table.epgtable tr.zb-even .prog-item.live { border-color: #d9a441; }
+body.dark table.epgtable tr.zb-odd .prog-item.live { border-color: #8fbf8f; }
+table.vgrid th.zb-even { border-top: 3px solid #9fc3dd; }
+table.vgrid th.zb-odd { border-top: 3px solid #bccba9; }
+table.vgrid td.zb-even ul.progs li.live { border-left-color: #d9a441; }
+table.vgrid td.zb-odd ul.progs li.live { border-left-color: #8aa884; }
+body.dark table.vgrid th.zb-even { border-top-color: #3f6b8a; }
+body.dark table.vgrid th.zb-odd { border-top-color: #5f7d5f; }
+body.dark table.vgrid td.zb-even ul.progs li.live { border-left-color: #d9a441; }
+body.dark table.vgrid td.zb-odd ul.progs li.live { border-left-color: #8fbf8f; }
 /* Jump target band: with scroll-margin the minimal-scroll parks the line
    ~1/3 from the left coming from EITHER side (without it, arriving from the
    right glues the line at the left edge, under the sticky channel column).

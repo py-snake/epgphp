@@ -100,7 +100,7 @@ Kapcsolók a `config.php`-ben: `providers`, `keep_past`, `keep_future`,
 
 - `/` – egyoldalas EPG rács (`?cat=`, `?ch=`, `?date=`),
 - `?view=h|v` – vízszintes idővonal / függőleges lista,
-- `?zoom=1|2|3` – idővonal-szélesség (3600/6000/9000px),
+- `?zoom=0..4` – méret (vízszintes: 2400/3600/6000/9000/12000px, függőleges: 110/140/170/210/260px oszlop),
 - `?provider=` – szolgáltató-választás (fallback-lánc automatikus),
 - `?refresh=N` – böngésző-frissítés percben (0 = ki, alapból ki),
 - `/tvmusor/{SLUG}[/{date}]` – egy csatorna napja,
