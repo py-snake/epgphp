@@ -28,7 +28,7 @@ return array(
 
   // --- providers: enabled ids + priority order ( = default + read fallback chain).
   // Each id must have lib/providers/<id>.php. Tables are programs_<id>, channels_<id>.
-  'providers'     => array('ripper', 'epglat', 'hungary1', 'iptvepg', 'freeepg'),
+  'providers'     => array('ripper', 'epglat', 'hungary1', 'iptvepg', 'freeepg', 'porthu'),
 
   // --- retention (days) ---
   'keep_past'     => 30,   // history depth, per provider table
@@ -45,6 +45,8 @@ return array(
   'lock_file'     => __DIR__ . '/var/import.lock',
   'log_file'      => __DIR__ . '/var/import.log',
   'fetch_timeout' => 60,
+  // pause between port.hu API calls, ms (politeness: slower beats banned)
+  'porthu_delay_ms' => 500,
 
   // --- frontend defaults ---
   'default_provider' => 'iptvepg',

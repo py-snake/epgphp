@@ -27,7 +27,7 @@ function t_front_db_with($provider, $title, $start_utc, $stop_utc, $chan = 'RTL'
 
 function test_providers_registry() {
   $defs = epg_provider_defs();
-  foreach (array('ripper', 'epglat', 'hungary1', 'iptvepg', 'freeepg') as $id) {
+  foreach (array('ripper', 'epglat', 'hungary1', 'iptvepg', 'freeepg', 'porthu') as $id) {
     t_ok(isset($defs[$id]), "provider registered: $id");
     t_ok(!empty($defs[$id]['urls']), "$id has feed URLs");
   }
@@ -137,4 +137,15 @@ function test_front_live_anchor_single() {
   }
   t_eq($live, 2, 'two live programmes classified');
   t_eq($anchors, 1, 'exactly one id="now" anchor per page');
+}
+
+function test_http_browser_headers() {
+  $ua = epg_http_user_agent();
+  t_ok(strpos($ua, 'Mozilla/5.0') === 0, 'browser UA, not a bot token');
+  t_ok(strpos($ua, 'Chrome/') !== false, 'Chrome-style UA');
+  t_ok(strpos($ua, 'epg-viewer') === false, 'no bot UA leaks out');
+  $hdr = epg_http_browser_headers();
+  $joined = implode("\n", $hdr);
+  t_ok(strpos($joined, 'Accept:') !== false, 'Accept header present');
+  t_ok(strpos($joined, 'Accept-Language:') !== false, 'Accept-Language present');
 }

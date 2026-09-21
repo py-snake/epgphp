@@ -24,8 +24,9 @@
 //   channels(slug TEXT PK, name TEXT, logo TEXT, xmltv_id TEXT)
 //   programs(channel TEXT, start_utc INT, stop_utc INT, title TEXT,
 //            subtitle TEXT, descr TEXT, year TEXT, icon TEXT, episode TEXT,
-//            category TEXT, rating TEXT, star TEXT,
+//            category TEXT, rating TEXT, star TEXT, film_url TEXT,
 //            UNIQUE(channel, start_utc))
+// film_url: port.hu adatlap path (/adatlap/...), ''/NULL otherwise.
 
 // ---------------------------------------------------------------------------
 // DB
@@ -81,7 +82,7 @@ function epg_init_schema(PDO $pdo) {
       channel VARCHAR(64), start_utc INT, stop_utc INT,
       title TEXT, subtitle TEXT, descr TEXT, year VARCHAR(8),
       icon TEXT, episode VARCHAR(64), category TEXT,
-      rating VARCHAR(16), star VARCHAR(16),
+      rating VARCHAR(16), star VARCHAR(16), film_url TEXT,
       UNIQUE KEY uq_prog (channel, start_utc),
       KEY ix_prog_start (start_utc)) CHARACTER SET utf8mb4");
   } else {
@@ -91,11 +92,12 @@ function epg_init_schema(PDO $pdo) {
       channel TEXT, start_utc INTEGER, stop_utc INTEGER,
       title TEXT, subtitle TEXT, descr TEXT, year TEXT,
       icon TEXT, episode TEXT, category TEXT,
-      rating TEXT, star TEXT,
+      rating TEXT, star TEXT, film_url TEXT,
       UNIQUE(channel, start_utc))");
     $pdo->exec("CREATE INDEX IF NOT EXISTS ix_prog_start ON programs(start_utc)");
     $pdo->exec("CREATE INDEX IF NOT EXISTS ix_prog_chan ON programs(channel, start_utc)");
   }
+  epg_ensure_column($pdo, 'programs', 'film_url', 'film_url TEXT');
 }
 
 // ---------------------------------------------------------------------------
@@ -125,7 +127,7 @@ function epg_init_provider_schema(PDO $pdo, $provider) {
       channel VARCHAR(64), start_utc INT, stop_utc INT,
       title TEXT, subtitle TEXT, descr TEXT, year VARCHAR(8),
       icon TEXT, episode VARCHAR(64), category TEXT,
-      rating VARCHAR(16), star VARCHAR(16),
+      rating VARCHAR(16), star VARCHAR(16), film_url TEXT,
       UNIQUE KEY uq_prog (channel, start_utc),
       KEY ix_prog_start (start_utc)) CHARACTER SET utf8mb4");
   } else {
@@ -135,14 +137,57 @@ function epg_init_provider_schema(PDO $pdo, $provider) {
       channel TEXT, start_utc INTEGER, stop_utc INTEGER,
       title TEXT, subtitle TEXT, descr TEXT, year TEXT,
       icon TEXT, episode TEXT, category TEXT,
-      rating TEXT, star TEXT,
+      rating TEXT, star TEXT, film_url TEXT,
       UNIQUE(channel, start_utc))");
     $pdo->exec("CREATE INDEX IF NOT EXISTS \"ix_{$t_prog}_start\" ON \"$t_prog\"(start_utc)");
     $pdo->exec("CREATE INDEX IF NOT EXISTS \"ix_{$t_prog}_chan\" ON \"$t_prog\"(channel, start_utc)");
   }
+  // live DBs created before film_url existed: upgrade in place, no wipe.
+  epg_ensure_column($pdo, $t_prog, 'film_url', 'film_url TEXT');
   $pdo->exec("CREATE TABLE IF NOT EXISTS meta (
     provider VARCHAR(64), k VARCHAR(64), v TEXT,
     PRIMARY KEY (provider, k))");
+}
+
+// Add a column to an existing table when a schema upgrade introduces one.
+// CREATE TABLE IF NOT EXISTS never touches old tables, so without this the
+// live DB would miss new columns until a manual wipe. Safe to call always.
+function epg_ensure_column(PDO $pdo, $table, $col, $ddl) {
+  if (!preg_match('/^[A-Za-z0-9_]+$/', (string)$table)
+    || !preg_match('/^[A-Za-z0-9_]+$/', (string)$col)) {
+    throw new InvalidArgumentException('bad table/column: ' . $table . '.' . $col);
+  }
+  $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+  $q = $driver === 'mysql' ? '`' : '"';
+  // NOTE: no SELECT-probe here: SQLite evaluates an unknown "double-quoted"
+  // name as a string literal instead of throwing, so the probe would always
+  // "succeed" and the migration would never run. Inspect the schema instead.
+  $exists = false;
+  try {
+    if ($driver === 'mysql') {
+      $st = $pdo->query('SHOW COLUMNS FROM ' . $q . $table . $q
+        . " LIKE '" . $col . "'");
+      $exists = $st !== false && $st->fetch(PDO::FETCH_ASSOC) !== false;
+    } else {
+      foreach ($pdo->query('PRAGMA table_info(' . $q . $table . $q . ')') as $r) {
+        if (isset($r['name']) && $r['name'] === $col) {
+          $exists = true;
+          break;
+        }
+      }
+    }
+  } catch (Exception $e) {
+    $exists = false; // table itself missing: let the caller's CREATE handle it
+    return;
+  }
+  if ($exists) {
+    return;
+  }
+  try {
+    $pdo->exec('ALTER TABLE ' . $q . $table . $q . ' ADD COLUMN ' . $ddl);
+  } catch (Exception $e) {
+    // raced / already added: upgrade is idempotent, ignore
+  }
 }
 
 // Standalone meta init: the error-recording path (catch -> last_error) must
@@ -586,8 +631,9 @@ function epg_query_day(PDO $pdo, $date_ymd, $allowed_slugs = null, $tz_name = 'E
   list($from, $to, $date_ymd) = epg_day_bounds($date_ymd, $tz_name);
   list(, $t_prog) = epg_provider_tables($provider);
   // overlap: programme intersects [from, to)
-  $sql = "SELECT channel,start_utc,stop_utc,title,subtitle,descr,year,icon,episode,category,rating,star
-          FROM $t_prog WHERE stop_utc > ? AND start_utc < ? ";
+  $cols = 'channel,start_utc,stop_utc,title,subtitle,descr,year,icon,'
+    . 'episode,category,rating,star,film_url';
+  $sql = "SELECT $cols FROM $t_prog WHERE stop_utc > ? AND start_utc < ? ";
   $params = array($from, $to);
   if (is_array($allowed_slugs) && count($allowed_slugs)) {
     $ph = implode(',', array_fill(0, count($allowed_slugs), '?'));
@@ -597,10 +643,22 @@ function epg_query_day(PDO $pdo, $date_ymd, $allowed_slugs = null, $tz_name = 'E
     }
   }
   $sql .= "ORDER BY channel, start_utc";
-  $st = $pdo->prepare($sql);
-  $st->execute($params);
+  $has_url = true;
+  try {
+    $st = $pdo->prepare($sql);
+    $st->execute($params);
+  } catch (Exception $e) {
+    // pre-upgrade tables lack film_url: serve without it (the next import
+    // migrates via epg_ensure_column), never fail the whole guide.
+    $has_url = false;
+    $st = $pdo->prepare(str_replace(',film_url', '', $sql));
+    $st->execute($params);
+  }
   $out = array();
   while ($r = $st->fetch(PDO::FETCH_ASSOC)) {
+    if (!$has_url) {
+      $r['film_url'] = '';
+    }
     $out[$r['channel']][] = $r;
   }
   return array($out, $from, $to, $date_ymd);

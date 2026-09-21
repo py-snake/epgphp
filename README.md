@@ -32,9 +32,11 @@ Ellenőrzés a szerveren: `php tests/run.php` (függőség nélkül, ~500 teszt)
 
 ## Cronjob: szolgáltatók letöltése (EGY url elég)
 
-Egyetlen hívás végigmegy **mind az öt** bekapcsolt szolgáltatón
-(`ripper`, `epglat`, `hungary1`, `iptvepg`, `freeepg` — sorrend:
-`config.php` `providers`).
+Egyetlen hívás végigmegy **mind a hat** bekapcsolt szolgáltatón
+(`ripper`, `epglat`, `hungary1`, `iptvepg`, `freeepg`, `porthu` — sorrend:
+`config.php` `providers`). A `porthu` JSON API-ról dolgozik (XMLTV helyett),
+ezért sok kis HTTP-hívása van: nagy ablakban érdemes külön ütemezni
+(`?provider=porthu`).
 Ha egy szolgáltató feedje hibázik (timeout, 404, hibás XML), a hiba a
 `meta` táblába kerül, a válasz `partial` lesz, és az import **halad tovább
 a következő szolgáltatóra** — a jó táblákat sosem rontja el (szolgáltatónként

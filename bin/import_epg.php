@@ -46,7 +46,13 @@ foreach ($srcs as $i => $src) {
   if (preg_match('#^https?://#i', $src)) {
     $tmp = sys_get_temp_dir() . '/epg_cli_' . $i . '_' . basename(parse_url($src, PHP_URL_PATH));
     fwrite(STDERR, "fetch $src -> $tmp\n");
-    $data = @file_get_contents($src);
+    $ctx = stream_context_create(array('http' => array(
+      'timeout' => 60,
+      'header' => 'User-Agent: ' . epg_http_user_agent() . "\r\n"
+        . "Accept: */*\r\n",
+      'ignore_errors' => true,
+    )));
+    $data = @file_get_contents($src, false, $ctx);
     if ($data === false) {
       fwrite(STDERR, "WARN: fetch failed: $src, skipped\n");
       continue;

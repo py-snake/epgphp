@@ -262,3 +262,35 @@ function test_epg_bad_provider_rejected() {  list($pdo) = t_test_db();
   }
   t_true($thrown, 'provider id validated (SQL injection guard)');
 }
+
+function test_epg_film_url_migration() {
+  // live DBs created before film_url existed: init must upgrade in place
+  // (no wipe), and reads must survive even before the upgrade runs.
+  list($pdo) = t_test_db();
+  // old schema: every column except film_url
+  $pdo->exec('CREATE TABLE programs_m (channel TEXT, start_utc INTEGER,'
+    . ' stop_utc INTEGER, title TEXT, subtitle TEXT, descr TEXT, year TEXT,'
+    . ' icon TEXT, episode TEXT, category TEXT, rating TEXT, star TEXT,'
+    . ' UNIQUE(channel, start_utc))');
+  $pdo->exec("INSERT INTO programs_m (channel,start_utc,stop_utc,title)"
+    . " VALUES ('RTL',1789959600,1789963200,'Reggeli')");
+  epg_init_provider_schema($pdo, 'm');
+  $cols = array();
+  foreach ($pdo->query('PRAGMA table_info(programs_m)') as $r) {
+    $cols[] = $r['name'];
+  }
+  t_ok(in_array('film_url', $cols), 'film_url added to old table');
+  list($groups) = epg_query_day($pdo, '2026-09-21', null, 'Europe/Budapest', 'm');
+  t_ok(isset($groups['RTL']), 'migrated table still queries');
+  t_ok(empty($groups['RTL'][0]['film_url']), 'missing link reads as empty');
+  // pre-upgrade read path: table without the column must not fail the guide
+  $pdo->exec('CREATE TABLE programs_m2 (channel TEXT, start_utc INTEGER,'
+    . ' stop_utc INTEGER, title TEXT, subtitle TEXT, descr TEXT, year TEXT,'
+    . ' icon TEXT, episode TEXT, category TEXT, rating TEXT, star TEXT,'
+    . ' UNIQUE(channel, start_utc))');
+  $pdo->exec("INSERT INTO programs_m2 (channel,start_utc,stop_utc,title)"
+    . " VALUES ('RTL',1789959600,1789963200,'Reggeli')");
+  list($groups) = epg_query_day($pdo, '2026-09-21', null, 'Europe/Budapest', 'm2');
+  t_ok(isset($groups['RTL']), 'unmigrated table still serves');
+  t_ok(empty($groups['RTL'][0]['film_url']), 'unmigrated link reads as empty');
+}

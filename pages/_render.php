@@ -124,6 +124,21 @@ function age_badge($rating) {  $rating = trim((string)$rating);
   return '';
 }
 
+// Programme start time: plain text, unless the provider stored a port.hu
+// adatlap link (film_url) - then the time opens it in a new window while
+// the title keeps pointing at the local detail page.
+function prog_time_html($r) {
+  $t = h(web_hm($r['start_utc']));
+  $u = isset($r['film_url']) ? trim((string)$r['film_url']) : '';
+  if ($u === '') {
+    return $t;
+  }
+  if (strpos($u, 'http://') !== 0 && strpos($u, 'https://') !== 0) {
+    $u = 'https://port.hu' . ($u !== '' && $u[0] !== '/' ? '/' . $u : $u);
+  }
+  return '<a href="' . h($u) . '" target="_blank">' . $t . '</a>';
+}
+
 // Horizontal view: tvmustra-style full-day timeline. Each channel row is a
 // relative strip; programmes are absolutely positioned at exact left%/width%
 // over 00-24 - every show of the day is rendered, the bottom scrollbar
@@ -211,7 +226,7 @@ function epg_table_h($groups, $names, $now, $date, $days = 1) {
       $s .= '<div class="prog-item ' . $cls . '"'
         . ' style="left:' . $pos($cs) . '%;width:' . $w . '%;"'
         . ' title="' . h(prog_tooltip($r)) . '">'
-        . '<div class="prog-time">' . h(web_hm($r['start_utc'])) . '</div>'
+        . '<div class="prog-time">' . prog_time_html($r) . '</div>'
         . '<div class="prog-title"><a href="'
         . h(u(detail_path($slug, $r['start_utc']))) . '">'
         . h($r['title']) . '</a>' . age_badge($r['rating']) . '</div>'
@@ -263,7 +278,7 @@ function epg_list_v($groups, $names, $now, $zoom = null) {
       }
       $s .= '<li class="' . $cls . '"' . $anchor
         . ' title="' . h(prog_tooltip($r)) . '">'
-        . h(web_hm($r['start_utc'])) . ' '
+        . '<span class="ptime">' . prog_time_html($r) . '</span> '
         . '<a href="' . h(u(detail_path($slug, $r['start_utc']))) . '">'
         . h($r['title']) . '</a>' . age_badge($r['rating']);
       if ($level >= 2 && !empty($r['subtitle'])) {

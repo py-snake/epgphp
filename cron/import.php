@@ -59,6 +59,20 @@ try {
     }
     $t1 = microtime(true);
     try {
+      // JSON/API providers with their own importer (e.g. porthu):
+      // custom_import(PDO, def, opts) returns stats like epg_import_file().
+      if (!empty($defs[$pid]['custom_import']) && is_callable($defs[$pid]['custom_import'])) {
+        $tot = call_user_func($defs[$pid]['custom_import'], $pdo, $defs[$pid], array(
+          'timeout' => isset($cfg['fetch_timeout']) ? (int)$cfg['fetch_timeout'] : 60,
+          'delay_ms' => isset($cfg['porthu_delay_ms']) ? (int)$cfg['porthu_delay_ms'] : 500,
+          'provider' => $pid,
+        ));
+        epg_meta_set($pdo, $pid, 'last_error', '');
+        $tot['status'] = 'ok';
+        $tot['took_s'] = round(microtime(true) - $t1, 1);
+        $result['providers'][$pid] = $tot;
+        continue;
+      }
       $fetch = epg_provider_fetch($pdo, $defs[$pid],
         isset($cfg['fetch_timeout']) ? (int)$cfg['fetch_timeout'] : 60);
       if (!$fetch['fresh']) {
