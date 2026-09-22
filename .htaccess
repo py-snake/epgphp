@@ -5,3 +5,16 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
+
+# EPG pages are big flat HTML tables (per-program tooltips): compress the
+# text responses. Negotiated via Accept-Encoding, so old browsers without
+# it transparently get identity. Guarded: no mod_deflate = no-op.
+<IfModule mod_deflate.c>
+AddOutputFilterByType DEFLATE text/html text/css application/json application/xml text/xml
+</IfModule>
+
+# style.css is version-pinned (?v=...), safe to cache long.
+<IfModule mod_expires.c>
+ExpiresActive On
+ExpiresByType text/css "access plus 1 week"
+</IfModule>

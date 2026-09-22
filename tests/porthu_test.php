@@ -190,6 +190,29 @@ function test_porthu_offline_import() {
   t_eq($st2['programmes'], 4, 're-import same count');
   $n = $pdo->query('SELECT COUNT(*) FROM programs_porthut')->fetchColumn();
   t_eq((int)$n, 4, 'upsert: no duplicates');
+  // intraday refresh: a programme removed upstream disappears, other days untouched
+  $pdo->exec("INSERT INTO programs_porthut (channel,start_utc,stop_utc,title)"
+    . " VALUES ('RTL'," . gmmktime(10, 0, 0, 9, 23, 2026)
+    . "," . gmmktime(11, 0, 0, 9, 23, 2026) . ",'Later')");
+  $doc = json_decode(t_porthu_day_fixture(), true);
+  foreach ($doc['channels'][0]['programs'] as $i => $p) {
+    if ($p['title'] === 'Meccs') {
+      unset($doc['channels'][0]['programs'][$i]);
+    }
+  }
+  $doc['channels'][0]['programs'] = array_values($doc['channels'][0]['programs']);
+  epg_import_porthu($pdo, epg_provider_porthu(), array(
+    'provider' => 'porthut',
+    'init_json' => t_porthu_init_fixture(),
+    'day_json' => array('2026-09-21' => json_encode($doc)),
+    'days' => array('2026-09-21'),
+  ));
+  $left = $pdo->query("SELECT title FROM programs_porthut WHERE title='Meccs'")->fetchColumn();
+  t_true($left === false, 'removed upstream programme disappears');
+  $n = $pdo->query('SELECT COUNT(*) FROM programs_porthut')->fetchColumn();
+  t_eq((int)$n, 4, 'window replace: 3 kept + 1 other-day row');
+  $later = $pdo->query("SELECT title FROM programs_porthut WHERE title='Later'")->fetchColumn();
+  t_eq($later, 'Later', 'other-day window untouched');
   // bad payloads fail loudly (cron marks the provider, keeps old tables)
   $thrown = false;
   try {

@@ -396,7 +396,8 @@ function web_channel_names(PDO $pdo, $provider) {
 
 // Default selection: channels with a healthy day (20+ shows), longest shows
 // first - film/sport majors float up, 2-minute clip-channels sink.
-// Fully data-driven, no curated list.
+// Fully data-driven, no curated list. Scans only the last 3 days (indexed):
+// defaults must reflect current data, not months-old history.
 function web_default_channels(PDO $pdo, $provider, $n = 12) {
   list(, $t_prog) = epg_provider_tables($provider);
   try {
@@ -565,13 +566,16 @@ function web_provider_stats(PDO $pdo, $provider) {
 
 // array(Y-m-d => programmes). Local-day grouping via fixed +02:00 shift
 // (exact for CEST; off-by-one only for 00:00-01:00 shows in CET months).
+// Window-bounded (indexed): coverage never needs months-old history.
 function web_date_coverage(PDO $pdo, $provider) {
   list(, $t_prog) = epg_provider_tables($provider);
   $out = array();
   try {
-    $q = "SELECT date(start_utc,'unixepoch','+2 hours') d, COUNT(*) c"
-      . " FROM $t_prog GROUP BY d ORDER BY d";
-    foreach ($pdo->query($q) as $r) {
+    $now = time();
+    $st = $pdo->prepare("SELECT date(start_utc,'unixepoch','+2 hours') d, COUNT(*) c"
+      . " FROM $t_prog WHERE start_utc BETWEEN ? AND ? GROUP BY d ORDER BY d");
+    $st->execute(array($now - 90 * 86400, $now + 30 * 86400));
+    foreach ($st as $r) {
       $out[$r['d']] = (int)$r['c'];
     }
   } catch (Exception $e) {

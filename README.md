@@ -42,7 +42,13 @@ Ha egy szolgáltató feedje hibázik (timeout, 404, hibás XML), a hiba a
 a következő szolgáltatóra** — a jó táblákat sosem rontja el (szolgáltatónként
 külön tranzakció + `flock`, átfedő futásból `409 busy`).
 
-    https://DOMAIN/tvsite/cron/import.php?token=CRONTOKEN
+     https://DOMAIN/tvsite/cron/import.php?token=CRONTOKEN
+
+ Napközbeni frissítés: az import bármikor újra lefuttatható (akár óránként
+ is) — ami nem változott, 304-gyel megússza, a változás felülíródik, a
+ félkész állapotot sosem látja a frontend (szolgáltatónkénti tranzakció +
+ `flock`). A `porthu` API-s provider a sok kis hívása miatt külön
+ ütemezve olcsóbb (`?provider=porthu`, ~3 perc a teljes ablak).
 
 Válasz példa:
 

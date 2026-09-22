@@ -13,7 +13,7 @@
 // bucket (past/afternoon/evening); tense is classified at render time from
 // start/stop like every other provider.
 // No ETag/Last-Modified upstream, so every import refetches (init ~58KB,
-// ~1MB per 25 channels per day). Programs upsert by (channel, start_utc);
+// ~1.5MB per 40 channels per day). Programs upsert by (channel, start_utc);
 // retention/prune bounds the tables afterwards. Politeness: a short pause
 // (delay_ms, default 500) sleeps between API calls, never hammered in a
 // burst - slower is better than banned. Old-PHP safe (>= 7.0).
@@ -140,8 +140,8 @@ function epg_porthu_prog_row(array $p) {
   );
 }
 
-// Day-fetch URLs: channels in batches (verified live: 25/batch works).
-function epg_porthu_day_urls(array $ids, $date, $batch = 25) {
+// Day-fetch URLs: channels in batches (verified live: 40/batch works).
+function epg_porthu_day_urls(array $ids, $date, $batch = 40) {
   $batch = max(1, (int)$batch);
   $urls = array();
   foreach (array_chunk(array_values($ids), $batch) as $chunk) {
@@ -156,7 +156,7 @@ function epg_porthu_day_urls(array $ids, $date, $batch = 25) {
 }
 
 // Full import: init (channels) + every daysDate day (programs).
-// $opts: timeout (60), batch (25), delay_ms (500: pause between API calls,
+// $opts: timeout (60), batch (40), delay_ms (500: pause between API calls,
 // 0 disables), progress (callable, per day),
 //   init_json (test seam: skip HTTP), day_json (test seam: date => raw JSON),
 //   days (test seam: override day list), provider (set by cron wrapper).
@@ -165,7 +165,7 @@ function epg_import_porthu(PDO $pdo, array $def, array $opts = array()) {
   $provider = isset($opts['provider']) ? (string)$opts['provider']
     : (isset($def['id']) ? (string)$def['id'] : 'porthu');
   $timeout = isset($opts['timeout']) ? (int)$opts['timeout'] : 60;
-  $batch = isset($opts['batch']) ? (int)$opts['batch'] : 25;
+  $batch = isset($opts['batch']) ? (int)$opts['batch'] : 40;
   $delay_us = (isset($opts['delay_ms']) ? max(0, (int)$opts['delay_ms']) : 500) * 1000;
   $progress = isset($opts['progress']) && is_callable($opts['progress']) ? $opts['progress'] : null;
   list($t_chan, $t_prog) = epg_provider_tables($provider);
@@ -229,10 +229,12 @@ function epg_import_porthu(PDO $pdo, array $def, array $opts = array()) {
   }
   $day_json = isset($opts['day_json']) && is_array($opts['day_json']) ? $opts['day_json'] : null;
   $ids = array_keys($id2slug);
+  // table quoting per driver (MySQL treats "x" as a string literal)
+  $tq = $driver === 'mysql' ? "`$t_prog`" : "\"$t_prog\"";
 
   if ($driver === 'mysql') {
-    $mk_prog = function () use ($pdo, $t_prog) {
-      return $pdo->prepare("INSERT INTO `$t_prog`
+    $mk_prog = function () use ($pdo, $tq) {
+      return $pdo->prepare("INSERT INTO $tq
         (channel,start_utc,stop_utc,title,subtitle,descr,year,icon,episode,category,rating,star,film_url)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE stop_utc=VALUES(stop_utc), title=VALUES(title),
@@ -241,21 +243,26 @@ function epg_import_porthu(PDO $pdo, array $def, array $opts = array()) {
         film_url=VALUES(film_url)");
     };
   } else {
-    $mk_prog = function () use ($pdo, $t_prog) {
-      return $pdo->prepare("INSERT OR REPLACE INTO \"$t_prog\"
+    $mk_prog = function () use ($pdo, $tq) {
+      return $pdo->prepare("INSERT OR REPLACE INTO $tq
         (channel,start_utc,stop_utc,title,subtitle,descr,year,icon,episode,category,rating,star,film_url)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)");
     };
   }
 
-  // No program-table wipe: 90+ HTTP calls can die mid-import, and an early
-  // wipe would take the previous days down with it. Upsert by
-  // (channel, start_utc) + prune-after-import keep the tables correct.
+  // Intraday-safe refresh: no full-table wipe (60+ HTTP calls can die
+  // mid-import). Instead each day is replaced as one unit - fetch first,
+  // then DELETE that day's window + INSERT fresh rows in a single txn.
+  // Removed/rescheduled programmes disappear on the next run, while a
+  // failed day keeps yesterday's rows instead of an empty window.
+  // Channels absent from a day response keep their old rows (safe default).
   $stats = array('channels' => count($chan_rows), 'programmes' => 0, 'skipped' => 0);
   foreach ($days as $date) {
+    $date = (string)$date;
     $day_prog = 0;
     $day_skip = 0;
-    $rows = array(); // collect first: one short txn per day, never during HTTP
+    $rows = array(); // collect first: short txn, never during HTTP
+    $day_slugs = array();
     if ($day_json !== null && array_key_exists($date, $day_json)) {
       $payloads = array((string)$day_json[$date]);
     } else {
@@ -284,6 +291,7 @@ function epg_import_porthu(PDO $pdo, array $def, array $opts = array()) {
         if (!isset($ch['programs']) || !is_array($ch['programs'])) {
           continue;
         }
+        $day_slugs[$slug] = true;
         foreach ($ch['programs'] as $p) {
           if (!is_array($p)) {
             $day_skip++;
@@ -299,12 +307,29 @@ function epg_import_porthu(PDO $pdo, array $def, array $opts = array()) {
       }
     }
     $pdo->beginTransaction();
-    $st_prog = $mk_prog();
-    foreach ($rows as $r) {
-      $st_prog->execute($r);
-      $day_prog++;
+    try {
+      // window replace for the fetched channels only (validated date, so a
+      // malformed day key can never wipe the wrong window)
+      if (count($day_slugs) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $m)
+        && checkdate((int)$m[2], (int)$m[3], (int)$m[1])) {
+        list($wfrom, $wto) = epg_day_bounds($date);
+        $ph = implode(',', array_fill(0, count($day_slugs), '?'));
+        $st_del = $pdo->prepare("DELETE FROM $tq"
+          . " WHERE channel IN ($ph) AND start_utc >= ? AND start_utc < ?");
+        $st_del->execute(array_merge(array_keys($day_slugs), array($wfrom, $wto)));
+      }
+      $st_prog = $mk_prog();
+      foreach ($rows as $r) {
+        $st_prog->execute($r);
+        $day_prog++;
+      }
+      $pdo->commit();
+    } catch (Exception $e) {
+      if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+      }
+      throw $e;
     }
-    $pdo->commit();
     $stats['programmes'] += $day_prog;
     $stats['skipped'] += $day_skip;
     if ($progress !== null) {
