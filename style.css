@@ -84,18 +84,18 @@ table.hours td { text-align: center; font-size: 12px; color: #0d47a1;
 .prog-item { position: absolute; top: 3px; height: 64px; overflow: hidden;
   background: transparent; border: 1px solid #e0e0e0; padding: 2px 4px; font-size: 14px;
   box-sizing: border-box; } /* transparent: the row zebra shows through;
-  only live + watch-hit paint their own background */
-.prog-item.live { background: #fff8e1; border-color: #f9a825; }
+  only live paints its own background */
+.prog-item.live { background: #fff8e1; border-color: #e65100; }
 /* live programme title: strong orange, both views (same orange as the
    "Most megy" tag and the now-marker family) */
 .prog-item.live .prog-title, .prog-item.live .prog-title a,
 ul.progs li.live .ptitle, ul.progs li.live .ptitle a { color: #e65100; }
-/* channel names: strong readable blue, both views */
-table.epgtable td.chan a, table.vgrid th a { color: #0d47a1; }
-/* watchlist hit: pale red, distinct from live yellow + past grey.
-   Defined after .live so a watched live show keeps the hit color. */
-.prog-item.hit { background: #ffebee; }
-ul.progs li.hit { background: #ffebee; }
+/* channel names: strong green, both views (nothing else uses green) */
+table.epgtable td.chan a, table.vgrid th a { color: #2e7d32; }
+/* watchlist hit: strong red TEXT (no background paint), both views.
+   Defined after .live so a watched live show keeps red text. */
+.prog-item.hit .prog-title, .prog-item.hit .prog-title a,
+ul.progs li.hit .ptitle, ul.progs li.hit .ptitle a { color: #c62828; }
 .prog-item.past, .prog-item.past a { color: #9e9e9e; }
 .prog-item .prog-title { font-weight: bold; }
 .prog-item .prog-time { color: #757575; font-size: 12px; }
@@ -109,36 +109,28 @@ ul.progs li.hit { background: #ffebee; }
 .now-marker { position: absolute; top: 0; bottom: 0; width: 3px;
   background: #d32f2f; z-index: 2; }
 /* zebra channel frames: even/odd channels get a subtle distinct frame on
-   the channel header + the currently-live programme only. Nothing else is
-   recolored, so the grid stays calm. */
+   the channel header only. Nothing else is recolored, so the grid stays
+   calm; live programmes always keep their uniform orange frame. */
 table.epgtable tr.zb-even td.chan { border-left: 3px solid #9fc3dd; border-bottom-color: #9fc3dd; }
 table.epgtable tr.zb-odd td.chan { border-left: 3px solid #bccba9; border-bottom-color: #bccba9; }
-table.epgtable tr.zb-even .prog-item.live { border-color: #d9a441; }
-table.epgtable tr.zb-odd .prog-item.live { border-color: #8aa884; }
 body.dark table.epgtable tr.zb-even td.chan { border-left-color: #3f6b8a; border-bottom-color: #3f6b8a; }
 body.dark table.epgtable tr.zb-odd td.chan { border-left-color: #5f7d5f; border-bottom-color: #5f7d5f; }
-body.dark table.epgtable tr.zb-even .prog-item.live { border-color: #d9a441; }
-body.dark table.epgtable tr.zb-odd .prog-item.live { border-color: #8fbf8f; }
 table.vgrid th.zb-even { border-top: 3px solid #9fc3dd; }
 table.vgrid th.zb-odd { border-top: 3px solid #bccba9; }
-table.vgrid td.zb-even ul.progs li.live { border-left-color: #d9a441; }
-table.vgrid td.zb-odd ul.progs li.live { border-left-color: #8aa884; }
 body.dark table.vgrid th.zb-even { border-top-color: #3f6b8a; }
 body.dark table.vgrid th.zb-odd { border-top-color: #5f7d5f; }
-body.dark table.vgrid td.zb-even ul.progs li.live { border-left-color: #d9a441; }
-body.dark table.vgrid td.zb-odd ul.progs li.live { border-left-color: #8fbf8f; }
 /* zebra rows/columns: even channels get a whisper of tint so rows read
-   apart. Backgrounds only - live/hit/past colors keep their priority. */
-table.epgtable tr.zb-even td.chan { background: #f2f6fa; }
-table.epgtable tr.zb-even td.tl .tlrel { background: #f7fafc; }
-table.vgrid th.zb-even { background: #e8f0f8; }
-table.vgrid td.zb-even ul.progs { background: #f7fafc; }
-table.epg tr.zb-even td { background: #f7fafc; }
-body.dark table.epgtable tr.zb-even td.chan { background: #1a2630; }
-body.dark table.epgtable tr.zb-even td.tl .tlrel { background: #182229; }
-body.dark table.vgrid th.zb-even { background: #202d36; }
-body.dark table.vgrid td.zb-even ul.progs { background: #182229; }
-body.dark table.epg tr.zb-even td { background: #182229; }
+   apart. Backgrounds only - live keeps its own background on top. */
+table.epgtable tr.zb-even td.chan { background: #e3edf5; }
+table.epgtable tr.zb-even td.tl .tlrel { background: #edf3f8; }
+table.vgrid th.zb-even { background: #d9e6f2; }
+table.vgrid td.zb-even ul.progs { background: #edf3f8; }
+table.epg tr.zb-even td { background: #edf3f8; }
+body.dark table.epgtable tr.zb-even td.chan { background: #1e2f3d; }
+body.dark table.epgtable tr.zb-even td.tl .tlrel { background: #1c2a36; }
+body.dark table.vgrid th.zb-even { background: #24333d; }
+body.dark table.vgrid td.zb-even ul.progs { background: #1c2a36; }
+body.dark table.epg tr.zb-even td { background: #1c2a36; }
 /* Jump target band: with scroll-margin the minimal-scroll parks the line
    ~1/3 from the left coming from EITHER side (without it, arriving from the
    right glues the line at the left edge, under the sticky channel column).
@@ -164,7 +156,7 @@ body.dark table.vgrid td { border-color: #424242; }
 ul.progs { list-style: none; margin: 0 0 8px 0; padding: 0; background: #ffffff;
   border: 1px solid #e0e0e0; border-top: none; }
 ul.progs li { padding: 6px 10px; border-top: 1px solid #eeeeee; }
-ul.progs li.live { background: #fff8e1; border-left: 4px solid #f9a825; }
+ul.progs li.live { background: #fff8e1; border-left: 4px solid #e65100; }
 ul.progs li.past { color: #9e9e9e; }
 
 /* featured + evening */
@@ -229,11 +221,13 @@ body.dark table.hours td.nextday { color: #757575; }
 body.dark td.chan { background: #1e1e1e; }
 body.dark .tlrel { background: #1e1e1e; border-color: #424242; }
 body.dark .prog-item { background: transparent; border-color: #424242; }
-body.dark .prog-item.live { background: #3e2723; border-color: #f9a825; }
+body.dark .prog-item.live { background: #3e2723; border-color: #ffab40; }
 body.dark .prog-item.live .prog-title, body.dark .prog-item.live .prog-title a,
 body.dark ul.progs li.live .ptitle, body.dark ul.progs li.live .ptitle a { color: #ffab40; }
-body.dark table.epgtable td.chan a, body.dark table.vgrid th a { color: #90caf9; }
-body.dark .prog-item.hit, body.dark ul.progs li.hit { background: #4a1d1d; }
+body.dark ul.progs li.live { border-left-color: #ffab40; }
+body.dark table.epgtable td.chan a, body.dark table.vgrid th a { color: #81c784; }
+body.dark .prog-item.hit .prog-title, body.dark .prog-item.hit .prog-title a,
+body.dark ul.progs li.hit .ptitle, body.dark ul.progs li.hit .ptitle a { color: #ef9a9a; }
 body.dark td.prog.live { background: #3e2723; }
 body.dark td.prog.past, body.dark td.prog.past a,
 body.dark .prog-item.past, body.dark .prog-item.past a,

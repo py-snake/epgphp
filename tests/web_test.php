@@ -615,6 +615,12 @@ function test_live_title_and_channel_colors() {
   t_ok(strpos($css, 'table.vgrid th a') !== false, 'channel name rule (v)');
   t_ok(strpos($css, 'body.dark ul.progs li.live .ptitle') !== false, 'dark live title rule');
   t_ok(strpos($css, 'body.dark table.vgrid th a') !== false, 'dark channel rule');
+  t_ok(strpos($css, '.prog-item.hit .prog-title') !== false, 'hit red text rule');
+  t_ok(strpos($css, 'body.dark ul.progs li.hit .ptitle') !== false, 'dark hit text rule');
+  t_ok(strpos($css, '.prog-item.live { background: #fff8e1; border-color: #e65100; }') !== false,
+    'uniform orange live border');
+  t_ok(strpos($css, 'border-left: 4px solid #e65100') !== false, 'vertical live border orange');
+  t_ok(strpos($css, 'zb-even .prog-item.live') === false, 'no zebra live borders');
   t_ok(strpos($css, 'tr.zb-even td.tl .tlrel') !== false, 'zebra row strip rule');
   t_ok(strpos($css, 'background: transparent; border: 1px solid #e0e0e0;') !== false,
     'cards transparent so full-row zebra shows through');
