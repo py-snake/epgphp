@@ -111,6 +111,9 @@ Kapcsolók a `config.php`-ben: `providers`, `keep_past`, `keep_future`,
 - `?zoom=0..4` – méret (vízszintes: 2400/3600/6000/9000/12000px, függőleges: 110/140/170/210/260px oszlop),
 - `?provider=` – szolgáltató-választás (fallback-lánc automatikus),
 - `?refresh=N` – böngésző-frissítés percben (0 = ki, alapból ki),
+- `?watch=e:Híradó,Columbo,p:Mese` – figyelt címek (sor- vagy vesszőtagolt):
+  a találat kártyája halvány piros hátteret kap (cím+alcím, ékezet/kisbetű-független;
+  sima/`e:` = pontos, `p:` = részleges egyezés),
 - `/tvmusor/{SLUG}[/{date}]` – egy csatorna napja,
 - `/musor/{SLUG}/{start}` – műsor-részletező,
 - `/settings` – beállítások + URL-építő (szolgáltatók, csatornák, dátumok

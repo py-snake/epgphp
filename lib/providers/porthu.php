@@ -13,7 +13,7 @@
 // bucket (past/afternoon/evening); tense is classified at render time from
 // start/stop like every other provider.
 // No ETag/Last-Modified upstream, so every import refetches (init ~58KB,
-// ~1.5MB per 40 channels per day). Programs upsert by (channel, start_utc);
+// ~6MB whole-day single call). Programs upsert by (channel, start_utc);
 // retention/prune bounds the tables afterwards. Politeness: a short pause
 // (delay_ms, default 500) sleeps between API calls, never hammered in a
 // burst - slower is better than banned. Old-PHP safe (>= 7.0).
@@ -140,8 +140,11 @@ function epg_porthu_prog_row(array $p) {
   );
 }
 
-// Day-fetch URLs: channels in batches (verified live: 40/batch works).
-function epg_porthu_day_urls(array $ids, $date, $batch = 40) {
+// Day-fetch URLs: channels in batches. Verified live: the whole day
+// (149 channels, ~6MB) comes down in ONE call, byte-identical across
+// trials and equal to small-batch fetches - so the default is one call
+// per day (~16 HTTP calls per full import instead of ~60+).
+function epg_porthu_day_urls(array $ids, $date, $batch = 150) {
   $batch = max(1, (int)$batch);
   $urls = array();
   foreach (array_chunk(array_values($ids), $batch) as $chunk) {
@@ -156,7 +159,8 @@ function epg_porthu_day_urls(array $ids, $date, $batch = 40) {
 }
 
 // Full import: init (channels) + every daysDate day (programs).
-// $opts: timeout (60), batch (40), delay_ms (500: pause between API calls,
+// $opts: timeout (60), batch (150: whole day in one call), delay_ms
+// (500: pause between API calls, 0 disables), progress (callable, per day),
 // 0 disables), progress (callable, per day),
 //   init_json (test seam: skip HTTP), day_json (test seam: date => raw JSON),
 //   days (test seam: override day list), provider (set by cron wrapper).
@@ -165,7 +169,7 @@ function epg_import_porthu(PDO $pdo, array $def, array $opts = array()) {
   $provider = isset($opts['provider']) ? (string)$opts['provider']
     : (isset($def['id']) ? (string)$def['id'] : 'porthu');
   $timeout = isset($opts['timeout']) ? (int)$opts['timeout'] : 60;
-  $batch = isset($opts['batch']) ? (int)$opts['batch'] : 40;
+  $batch = isset($opts['batch']) ? (int)$opts['batch'] : 150;
   $delay_us = (isset($opts['delay_ms']) ? max(0, (int)$opts['delay_ms']) : 500) * 1000;
   $progress = isset($opts['progress']) && is_callable($opts['progress']) ? $opts['progress'] : null;
   list($t_chan, $t_prog) = epg_provider_tables($provider);
@@ -250,7 +254,7 @@ function epg_import_porthu(PDO $pdo, array $def, array $opts = array()) {
     };
   }
 
-  // Intraday-safe refresh: no full-table wipe (60+ HTTP calls can die
+  // Intraday-safe refresh: no full-table wipe (~16 HTTP calls can still die
   // mid-import). Instead each day is replaced as one unit - fetch first,
   // then DELETE that day's window + INSERT fresh rows in a single txn.
   // Removed/rescheduled programmes disappear on the next run, while a

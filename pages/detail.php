@@ -14,6 +14,8 @@ $GLOBALS['WCARRY'] = array(
   'refresh' => isset($_GET['refresh']) ? (string)$_GET['refresh'] : null,
   'offset' => isset($_GET['offset']) ? (string)$_GET['offset'] : null,
   'font' => web_font_raw(),
+  'watch' => (isset($_GET['watch']) && trim((string)$_GET['watch']) !== '')
+    ? trim((string)$_GET['watch']) : null,
 );
 $self = $row ? detail_path($slug, $start) : '/';
 $viewlinks = array('h' => $self, 'v' => $self);
@@ -36,7 +38,7 @@ $page = array(
 $now = epg_now();
 $cls = epg_classify($row['start_utc'], $row['stop_utc'], $now);
 echo '<div class="detail">';
-echo '<h2>' . h($row['title']) . age_badge($row['rating']) . '</h2>';
+echo '<h2>' . h($row['title']) . '</h2>';
 echo '<p><a href="' . h(u(channel_path($slug), array(), null, 'now')) . '">' . h($name) . '</a> · '
   . h(date('Y-m-d', $row['start_utc'])) . ' '
   . h(web_hm($row['start_utc'])) . '-' . h(web_hm($row['stop_utc'])) . ' · ';

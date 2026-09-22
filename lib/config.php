@@ -9,6 +9,11 @@ function epg_config_path($here_dir) {
 }
 
 function epg_load_config($here_dir) {
+  if (php_sapi_name() !== 'cli') {
+    // Production: never print fatals/stack traces to visitors (paths, SQL).
+    // Logging is untouched (log_errors), only on-screen display is muted.
+    @ini_set('display_errors', '0');
+  }
   $path = epg_config_path($here_dir);
   if (is_file($path)) {
     $cfg = require $path;

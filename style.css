@@ -70,8 +70,6 @@ td.prog.past { color: #9e9e9e; }
 td.prog.past a { color: #9e9e9e; }
 .prog .t { color: #757575; font-size: 12px; }
 .prog .live-tag { color: #e65100; font-weight: bold; }
-.age { display: inline-block; border: 1px solid #d32f2f; color: #d32f2f;
-  font-size: 11px; font-weight: bold; padding: 0 4px; margin-left: 4px; }
 .hoursan { font-size: 12px; margin: 6px 0; color: #616161; }
 
 /* horizontal timeline (tvmustra-style): relative rows, absolute % strips.
@@ -84,9 +82,20 @@ table.hours { border-collapse: collapse; width: 100%; }
 table.hours td { text-align: center; font-size: 12px; color: #0d47a1;
   background: #e3f2fd; border: 1px solid #e0e0e0; padding: 2px 0; }
 .prog-item { position: absolute; top: 3px; height: 64px; overflow: hidden;
-  background: #ffffff; border: 1px solid #e0e0e0; padding: 2px 4px; font-size: 14px;
-  box-sizing: border-box; }
+  background: transparent; border: 1px solid #e0e0e0; padding: 2px 4px; font-size: 14px;
+  box-sizing: border-box; } /* transparent: the row zebra shows through;
+  only live + watch-hit paint their own background */
 .prog-item.live { background: #fff8e1; border-color: #f9a825; }
+/* live programme title: strong orange, both views (same orange as the
+   "Most megy" tag and the now-marker family) */
+.prog-item.live .prog-title, .prog-item.live .prog-title a,
+ul.progs li.live .ptitle, ul.progs li.live .ptitle a { color: #e65100; }
+/* channel names: strong readable blue, both views */
+table.epgtable td.chan a, table.vgrid th a { color: #0d47a1; }
+/* watchlist hit: pale red, distinct from live yellow + past grey.
+   Defined after .live so a watched live show keeps the hit color. */
+.prog-item.hit { background: #ffebee; }
+ul.progs li.hit { background: #ffebee; }
 .prog-item.past, .prog-item.past a { color: #9e9e9e; }
 .prog-item .prog-title { font-weight: bold; }
 .prog-item .prog-time { color: #757575; font-size: 12px; }
@@ -118,6 +127,18 @@ body.dark table.vgrid th.zb-even { border-top-color: #3f6b8a; }
 body.dark table.vgrid th.zb-odd { border-top-color: #5f7d5f; }
 body.dark table.vgrid td.zb-even ul.progs li.live { border-left-color: #d9a441; }
 body.dark table.vgrid td.zb-odd ul.progs li.live { border-left-color: #8fbf8f; }
+/* zebra rows/columns: even channels get a whisper of tint so rows read
+   apart. Backgrounds only - live/hit/past colors keep their priority. */
+table.epgtable tr.zb-even td.chan { background: #f2f6fa; }
+table.epgtable tr.zb-even td.tl .tlrel { background: #f7fafc; }
+table.vgrid th.zb-even { background: #e8f0f8; }
+table.vgrid td.zb-even ul.progs { background: #f7fafc; }
+table.epg tr.zb-even td { background: #f7fafc; }
+body.dark table.epgtable tr.zb-even td.chan { background: #1a2630; }
+body.dark table.epgtable tr.zb-even td.tl .tlrel { background: #182229; }
+body.dark table.vgrid th.zb-even { background: #202d36; }
+body.dark table.vgrid td.zb-even ul.progs { background: #182229; }
+body.dark table.epg tr.zb-even td { background: #182229; }
 /* Jump target band: with scroll-margin the minimal-scroll parks the line
    ~1/3 from the left coming from EITHER side (without it, arriving from the
    right glues the line at the left edge, under the sticky channel column).
@@ -207,8 +228,12 @@ body.dark table.epg th.nowh, body.dark table.hours td.nowh { background: #47181c
 body.dark table.hours td.nextday { color: #757575; }
 body.dark td.chan { background: #1e1e1e; }
 body.dark .tlrel { background: #1e1e1e; border-color: #424242; }
-body.dark .prog-item { background: #1e1e1e; border-color: #424242; }
+body.dark .prog-item { background: transparent; border-color: #424242; }
 body.dark .prog-item.live { background: #3e2723; border-color: #f9a825; }
+body.dark .prog-item.live .prog-title, body.dark .prog-item.live .prog-title a,
+body.dark ul.progs li.live .ptitle, body.dark ul.progs li.live .ptitle a { color: #ffab40; }
+body.dark table.epgtable td.chan a, body.dark table.vgrid th a { color: #90caf9; }
+body.dark .prog-item.hit, body.dark ul.progs li.hit { background: #4a1d1d; }
 body.dark td.prog.live { background: #3e2723; }
 body.dark td.prog.past, body.dark td.prog.past a,
 body.dark .prog-item.past, body.dark .prog-item.past a,
@@ -229,7 +254,6 @@ body.dark .detail h2 { color: #90caf9; }
 body.dark .footer { background: #1e1e1e; color: #9e9e9e; border-color: #424242; }
 body.dark .footer a { color: #90caf9; }
 body.dark .hoursan { color: #b3b3b3; }
-body.dark .age { border-color: #ef9a9a; color: #ef9a9a; }
 body.dark .nowt, body.dark .live-tag { color: #ffab40; }
 body.dark ul.chanindex li a { background: #1e1e1e; border-color: #424242; }
 

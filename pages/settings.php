@@ -57,6 +57,13 @@ $b_off_raw = isset($_GET['b_offset']) ? (string)$_GET['b_offset']
 $b_off = (preg_match('/^-?\d{1,4}$/', $b_off_raw) && abs((int)$b_off_raw) <= 720)
   ? (string)((int)$b_off_raw) : '0';
 
+// watchlist, free text (falls back to plain ?watch=, then empty)
+$b_watch = isset($_GET['b_watch']) ? trim((string)$_GET['b_watch'])
+  : (isset($_GET['watch']) ? trim((string)$_GET['watch']) : '');
+if (strlen($b_watch) > 2000) {
+  $b_watch = substr($b_watch, 0, 2000);
+}
+
 $names = web_channel_names($pdo, $b_provider);
 $all_slugs = web_channel_slugs($pdo, $b_provider);
 // plain ?ch=CSV (guide form) works here too, not just ?b_ch[]=
@@ -72,14 +79,29 @@ if (count($coverage) && !isset($coverage[$b_date])) {
   // keep user-typed date (query still works); options just highlight coverage
 }
 
+// Shared builder-state carry: every self-link/form on this page re-emits
+// these, so nothing (watch included) is ever lost on provider switch etc.
+// u() drops nulls and encodes arrays (b_ch[]=) on its own.
+$b_keep = array(
+  'b_type' => $b_type, 'b_cat' => $b_cat, 'b_date' => $b_date,
+  'b_view' => $b_view, 'b_zoom' => $b_zoom, 'b_font' => $b_font,
+  'b_refresh' => $b_ref, 'b_offset' => $b_off,
+  'b_watch' => ($b_watch !== '' ? $b_watch : null),
+  'b_ch' => count($b_ch) ? array_values($b_ch) : null,
+);
+
 // ---- 1. providers ----
 echo '<h2 class="section-title">Szolgáltatók</h2>';
 echo '<div class="tablescroll"><table class="epg" cellpadding="0" cellspacing="0">'
   . '<tr><th>Azonosító</th><th>Csatorna</th><th>Műsor</th>'
   . '<th>Időszak</th><th>Utolsó import</th><th>Hiba</th></tr>';
+$ri = 0;
 foreach ($providers as $pid) {
   $st = web_provider_stats($pdo, $pid);
-  echo '<tr><td><a href="' . h(u('/settings', array('b_provider' => $pid))) . '">'
+  $zb = ($ri % 2 === 0) ? 'zb-even' : 'zb-odd';
+  $ri++;
+  echo '<tr class="' . $zb . '"><td><a href="' . h(u('/settings', array_merge($b_keep,
+    array('b_provider' => $pid)))) . '">'
     . h($pid) . '</a>' . ($pid === $b_provider ? ' *' : '') . '</td>'
     . '<td>' . $st['channels'] . '</td><td>' . $st['programmes'] . '</td><td>';
   echo $st['first'] === null ? '-' : h(date('m-d', $st['first']) . ' – ' . date('m-d', $st['last']));
@@ -102,6 +124,20 @@ if ($WSTATE['theme'] === 'dark') {
 }
 if (isset($_GET['refresh']) && $_GET['refresh'] !== '') {
   echo '<input type="hidden" name="refresh" value="' . h((string)$_GET['refresh']) . '">';
+}
+// full builder state rides along, otherwise switching provider drops
+// everything (watch included). b_ch[] needs one field per channel.
+foreach ($b_keep as $k => $v) {
+  if ($v === null || $v === '') {
+    continue;
+  }
+  if (is_array($v)) {
+    foreach ($v as $vv) {
+      echo '<input type="hidden" name="' . h($k) . '[]" value="' . h((string)$vv) . '">';
+    }
+  } else {
+    echo '<input type="hidden" name="' . h($k) . '" value="' . h((string)$v) . '">';
+  }
 }
 echo '<p><label>Szolgáltató: <select name="b_provider">';
 foreach ($providers as $pid) {
@@ -164,7 +200,10 @@ echo '<label><input type="checkbox" name="theme" value="dark"'
 echo '<label>Frissítés (perc, 0 = ki): <input type="text" name="b_refresh" size="4" value="'
   . h($b_ref) . '"></label> ';
 echo '<label>Időkorrekció (perc): <input type="text" name="b_offset" size="5" value="'
-  . h($b_off) . '"></label></p>';
+  . h($b_off) . '"></label> ';
+echo '<label>Figyelt műsorok:<br><textarea name="b_watch" rows="4" cols="40">'
+  . h($b_watch) . '</textarea><br><span class="tiny">soronként egy: e:Híradó (pontos), '
+  . 'p:Mese (részleges) — prefix nélkül pontos</span></label></p>';
 echo '<div class="checks-grid">';
 foreach (web_sorted_channels($pdo, $b_provider) as $slug => $nm) {
   echo '<label><input type="checkbox" name="b_ch[]" value="' . h($slug) . '"'
@@ -181,17 +220,21 @@ $bst = array('provider' => $b_provider, 'view' => $b_view,
   'theme' => ($WSTATE['theme'] === 'dark' ? 'dark' : null),
   'refresh' => ($b_ref == (string)$CFG['refresh_mins'] ? null : $b_ref),
   'offset' => ($b_off !== '0' ? $b_off : null));
+$watch_param = ($b_watch !== '' ? $b_watch : null); // u() only takes
+// watch via $params (state carries provider/view/zoom/... only)
 $built = '';
 switch ($b_type) {
   case 'epg':
     $built = u('/', array(
       'cat' => $b_cat === 'mind' ? null : $b_cat,
       'ch' => count($b_ch) ? implode(',', $b_ch) : null,
-      'date' => $b_date === web_today() ? null : $b_date), $bst, 'now');
+      'date' => $b_date === web_today() ? null : $b_date,
+      'watch' => $watch_param), $bst, 'now');
     break;
   case 'channel':
     $first = count($b_ch) ? $b_ch[0] : (count($all_slugs) ? $all_slugs[0] : 'RTL');
-    $built = u(channel_path($first, $b_date === web_today() ? null : $b_date), array(), $bst, 'now');
+    $built = u(channel_path($first, $b_date === web_today() ? null : $b_date),
+      array('watch' => $watch_param), $bst, 'now');
     break;
   case 'detail':
     $built = ''; // programme picker below yields the links
@@ -214,6 +257,7 @@ if (count($b_ch) > 1) {
   $base_params = array(
     'b_provider' => $b_provider, 'b_type' => $b_type, 'b_cat' => $b_cat,
     'b_date' => $b_date, 'b_view' => $b_view, 'b_zoom' => $b_zoom,
+    'b_watch' => ($b_watch !== '' ? $b_watch : null),
   );
   echo '<h3 class="section-title">Sorrend (így mutatja a műsor)</h3><ol>';
   $last = count($b_ch) - 1;
@@ -252,13 +296,17 @@ if (!count($counts)) {
     }
     return ($ka < $kb) ? -1 : 1;
   });
+  $ri = 0;
   foreach ($counts as $slug => $c) {
     $nm = isset($names[$slug]) ? $names[$slug] : $slug;
-    echo '<tr><td class="chan">' . h($nm) . '</td><td>' . $c . '</td><td>'
-      . '<a class="btn" href="' . h(u(channel_path($slug, $b_date), array(), $bst)) . '">Nap</a> '
-      . '<a class="btn" href="' . h(u('/settings', array('b_provider' => $b_provider,
-        'b_type' => 'detail', 'b_date' => $b_date,
-        'b_ch' => array($slug)))) . '">Műsor-URL-ek</a></td></tr>';
+    $zb = ($ri % 2 === 0) ? 'zb-even' : 'zb-odd';
+    $ri++;
+    echo '<tr class="' . $zb . '"><td class="chan">' . h($nm) . '</td><td>' . $c . '</td><td>'
+      . '<a class="btn" href="' . h(u(channel_path($slug, $b_date),
+        array('watch' => $watch_param), $bst)) . '">Nap</a> '
+      . '<a class="btn" href="' . h(u('/settings', array_merge($b_keep,
+        array('b_provider' => $b_provider, 'b_type' => 'detail',
+          'b_date' => $b_date, 'b_ch' => array($slug)))) ) . '">Műsor-URL-ek</a></td></tr>';
   }
   echo '</table></div>';
 }
@@ -274,7 +322,8 @@ if ($b_type === 'detail' && count($b_ch)) {
   } else {
     echo '<ul class="progs">';
     foreach ($progs as $r) {
-      $dl = web_abs_built($CFG, $base_url, u(detail_path($pick, $r['start_utc']), array(), $bst));
+      $dl = web_abs_built($CFG, $base_url, u(detail_path($pick, $r['start_utc']),
+        array('watch' => $watch_param), $bst));
       echo '<li>' . h(web_hm($r['start_utc'])) . ' '
         . '<a href="' . h($dl) . '">' . h($r['title']) . '</a><br>'
         . '<input type="text" class="urlbox" readonly size="60" value="' . h($dl) . '"></li>';
@@ -290,7 +339,7 @@ if (!count($coverage)) {
 } else {
   echo '<ul class="chanindex">';
   foreach ($coverage as $d => $c) {
-    echo '<li><a href="' . h(u('/', array('date' => $d), $bst)) . '">'
+    echo '<li><a href="' . h(u('/', array('date' => $d, 'watch' => $watch_param), $bst)) . '">'
       . h($d) . ' (' . $c . ')</a></li>';
   }
   echo '</ul>';
@@ -300,7 +349,7 @@ echo '<p class="tiny">Verzió: ' . h(isset($CFG['version']) ? $CFG['version'] : 
 // ---- 7. header nav carry (templates/header.php renders AFTER this page):
 // the EPG/CSATORNÁK links (u('/')) must return to the guide with the
 // builder state, so leaving settings without pressing "Megnyitás" keeps
-// every param (provider/view/channels/date/cat/zoom/font/refresh/offset).
+// every param (provider/view/channels/date/cat/zoom/font/refresh/offset/watch).
 // Set LAST so body links above keep their own explicit state.
 $GLOBALS['WSTATE'] = array_merge($WSTATE,
   array('provider' => $b_provider, 'view' => $b_view));
@@ -312,4 +361,5 @@ $GLOBALS['WCARRY'] = array(
   'font' => ($b_font === '3' ? null : $b_font),
   'refresh' => ($b_ref == (string)$CFG['refresh_mins'] ? null : $b_ref),
   'offset' => ($b_off !== '0' ? $b_off : null),
+  'watch' => ($b_watch !== '' ? $b_watch : null),
 );

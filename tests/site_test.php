@@ -368,6 +368,22 @@ function test_site_settings_builds_urls() {
     }
   }
   t_eq(array_slice($lost, 0, 2), array(), 'settings self-links keep refresh');
+  // watchlist survives everywhere on settings: switch form, provider rows,
+  // day links (incl. multiline values round-tripping through hidden fields)
+  list(, $body) = t_site_curl($s['base'] . '/settings?' . $T
+    . '&b_watch=' . urlencode("e:Columbo\np:Mese") . '&b_ch[]=RTL', $code);
+  t_eq($code, 200, 'settings with watch 200');
+  t_ok(substr_count($body, 'name="b_watch"') >= 2,
+    'watch in builder textarea + switch-form hidden field');
+  t_ok(strpos($body, 'watch=') !== false, 'built URL carries watch');
+  preg_match_all('~href="([^"]*b_provider=[^"]*)"~', $body, $mm);
+  $lost = array();
+  foreach ($mm[1] as $href) {
+    if (strpos($href, 'b_watch=') === false) {
+      $lost[] = $href;
+    }
+  }
+  t_eq(array_slice($lost, 0, 2), array(), 'provider self-links keep watch');
   // display state survives leaving the detail page (refresh kept!)
   $dstart = $GLOBALS['__t_site_start'];
   list(, $body) = t_site_curl($s['base'] . "/musor/RTL/$dstart?$T&refresh=5", $code);

@@ -22,6 +22,8 @@ $GLOBALS['WCARRY'] = array(
   'refresh' => isset($_GET['refresh']) ? (string)$_GET['refresh'] : null,
   'offset' => isset($_GET['offset']) ? (string)$_GET['offset'] : null,
   'font' => web_font_raw(),
+  'watch' => (isset($_GET['watch']) && trim((string)$_GET['watch']) !== '')
+    ? trim((string)$_GET['watch']) : null,
 );
 $self = channel_path($slug, $date === web_today() ? null : $date);
 $viewlinks = array('h' => $self, 'v' => $self);

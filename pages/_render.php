@@ -62,7 +62,7 @@ function render_filter_form($action, $slugs, $sel, $names, $date) {
 
 function hidden_state_fields($skip = array()) {
   $s = '';
-  foreach (array('provider', 'view', 'token', 'cat', 'zoom', 'theme', 'refresh', 'offset', 'font') as $k) {
+  foreach (array('provider', 'view', 'token', 'cat', 'zoom', 'theme', 'refresh', 'offset', 'font', 'watch') as $k) {
     if (in_array($k, $skip, true)) {
       continue;
     }
@@ -115,13 +115,6 @@ function prog_tooltip($r) {
     $lines[] = (string)$r['descr']; // full text, no truncation
   }
   return implode("\n", $lines);
-}
-
-function age_badge($rating) {  $rating = trim((string)$rating);
-  if ($rating !== '' && preg_match('/^\d{1,2}$/', $rating)) {
-    return '<span class="age">' . h($rating) . '</span>';
-  }
-  return '';
 }
 
 // Programme start time: plain text, unless the provider stored a port.hu
@@ -203,6 +196,8 @@ function epg_table_h($groups, $names, $now, $date, $days = 1) {
     $marker = '<div class="now-marker" style="left:' . $pos($now) . '%;"></div>';
   }
   $ri = 0;
+  $watch = function_exists('web_watch_parse')
+    ? web_watch_parse(isset($_GET['watch']) ? $_GET['watch'] : '') : array();
   foreach ($groups as $slug => $rows) {
     $zb = ($ri % 2 === 0) ? 'zb-even' : 'zb-odd';
     $ri++;
@@ -219,17 +214,19 @@ function epg_table_h($groups, $names, $now, $date, $days = 1) {
         continue;
       }
       $cls = epg_classify($r['start_utc'], $r['stop_utc'], $now);
+      $hit = (count($watch) && function_exists('web_watch_match')
+        && web_watch_match($r, $watch)) ? ' hit' : '';
       $w = round($pos($ce) - $pos($cs), 2);
       if ($w <= 0) {
         continue;
       }
-      $s .= '<div class="prog-item ' . $cls . '"'
+      $s .= '<div class="prog-item ' . $cls . $hit . '"'
         . ' style="left:' . $pos($cs) . '%;width:' . $w . '%;"'
         . ' title="' . h(prog_tooltip($r)) . '">'
         . '<div class="prog-time">' . prog_time_html($r) . '</div>'
         . '<div class="prog-title"><a href="'
         . h(u(detail_path($slug, $r['start_utc']))) . '">'
-        . h($r['title']) . '</a>' . age_badge($r['rating']) . '</div>'
+        . h($r['title']) . '</a></div>'
         . '</div>';
     }
     $s .= $marker . '</div></td></tr>';
@@ -264,6 +261,8 @@ function epg_list_v($groups, $names, $now, $zoom = null) {
   }
   $s .= '</tr><tr>';
   $anchor_done = false;
+  $watch = function_exists('web_watch_parse')
+    ? web_watch_parse(isset($_GET['watch']) ? $_GET['watch'] : '') : array();
   $ci = 0;
   foreach ($groups as $slug => $rows) {
     $zb = ($ci % 2 === 0) ? 'zb-even' : 'zb-odd';
@@ -271,16 +270,18 @@ function epg_list_v($groups, $names, $now, $zoom = null) {
     $s .= '<td class="' . $zb . '" width="' . $colw . '%"><ul class="progs">';
     foreach ($rows as $r) {
       $cls = epg_classify($r['start_utc'], $r['stop_utc'], $now);
+      $hit = (count($watch) && function_exists('web_watch_match')
+        && web_watch_match($r, $watch)) ? ' hit' : '';
       $anchor = '';
       if ($cls === 'live' && !$anchor_done) {
         $anchor = ' id="now"';
         $anchor_done = true;
       }
-      $s .= '<li class="' . $cls . '"' . $anchor
+      $s .= '<li class="' . $cls . $hit . '"' . $anchor
         . ' title="' . h(prog_tooltip($r)) . '">'
         . '<span class="ptime">' . prog_time_html($r) . '</span> '
-        . '<a href="' . h(u(detail_path($slug, $r['start_utc']))) . '">'
-        . h($r['title']) . '</a>' . age_badge($r['rating']);
+        . '<span class="ptitle"><a href="' . h(u(detail_path($slug, $r['start_utc']))) . '">'
+        . h($r['title']) . '</a></span>';
       if ($level >= 2 && !empty($r['subtitle'])) {
         $s .= '<br><i>' . h($r['subtitle']) . '</i>';
       }

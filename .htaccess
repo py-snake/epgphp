@@ -6,6 +6,26 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
 
+# config.php holds live tokens: never serve it over HTTP (PHP includes via
+# the filesystem keep working - this only blocks direct web access, e.g. if
+# the PHP handler ever fails and source would download as text).
+<IfModule mod_authz_core.c>
+<Files config.php>
+Require all denied
+</Files>
+</IfModule>
+<IfModule !mod_authz_core.c>
+<Files config.php>
+Order deny,allow
+Deny from all
+</Files>
+</IfModule>
+
+# Hide directory structure where no index file exists.
+<IfModule mod_autoindex.c>
+Options -Indexes
+</IfModule>
+
 # EPG pages are big flat HTML tables (per-program tooltips): compress the
 # text responses. Negotiated via Accept-Encoding, so old browsers without
 # it transparently get identity. Guarded: no mod_deflate = no-op.

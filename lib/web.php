@@ -487,6 +487,78 @@ function web_cat_label($cat) {
   return isset($labels[$cat]) ? $labels[$cat] : $cat;
 }
 
+// Watchlist (?watch=): titles separated by newline or comma, each
+// optionally prefixed with e: (exact, the default) or p: (partial/
+// substring), case-insensitive:
+//   ?watch=e:Híradó%0AColumbo%0Ap:Mese
+// A literal leading "e:"/"p:" escapes with a backslash ("\e:X" = exact
+// title "e:X"). Matching is case- and accent-insensitive, against title +
+// subtitle. Caps: 50 items, ~2000 chars total (stays far under the ~8k
+// request-line limit even with the rest of the state params).
+function web_watch_norm($s) {
+  $s = function_exists('mb_strtolower')
+    ? mb_strtolower((string)$s, 'UTF-8') : strtolower((string)$s);
+  $from = array('á', 'é', 'í', 'ó', 'ö', 'ő', 'ú', 'ü', 'ű', 'ä', 'ö', 'ü', 'ß',
+    'à', 'â', 'è', 'ê', 'ë', 'î', 'ï', 'ô', 'ù', 'û', 'ü', 'ÿ', 'ç', 'ñ');
+  $to   = array('a', 'e', 'i', 'o', 'o', 'o', 'u', 'u', 'u', 'a', 'o', 'u', 'ss',
+    'a', 'a', 'e', 'e', 'e', 'i', 'i', 'o', 'u', 'u', 'u', 'y', 'c', 'n');
+  $s = str_replace($from, $to, $s);
+  $s = preg_replace('/\s+/', ' ', trim($s));
+  return $s;
+}
+
+function web_watch_parse($raw) {
+  $items = is_array($raw) ? $raw : preg_split('/[\r\n,]+/', (string)$raw);
+  $out = array();
+  $len = 0;
+  foreach ($items as $it) {
+    $it = trim((string)$it);
+    if ($it === '') {
+      continue;
+    }
+    $exact = true;
+    if (preg_match('/^\\\\([eEpP]:)/', $it)) {
+      $it = substr($it, 1); // escaped literal: "\e:X" -> exact title "e:X"
+    } elseif (preg_match('/^([eEpP]):(.*)$/s', $it, $m)) {
+      $exact = (strtolower($m[1]) === 'e');
+      $it = trim($m[2]);
+    }
+    $t = web_watch_norm($it);
+    if ($t === '') {
+      continue;
+    }
+    $len += strlen($it);
+    if ($len > 2000) {
+      break;
+    }
+    $out[] = array('exact' => $exact, 'text' => $t);
+    if (count($out) >= 50) {
+      break;
+    }
+  }
+  return $out;
+}
+
+function web_watch_match($row, array $watch) {
+  if (!count($watch)) {
+    return false;
+  }
+  $title = web_watch_norm(isset($row['title']) ? $row['title'] : '');
+  $sub = web_watch_norm(isset($row['subtitle']) ? $row['subtitle'] : '');
+  foreach ($watch as $w) {
+    if ($w['exact']) {
+      if (($title !== '' && $title === $w['text'])
+        || ($sub !== '' && $sub === $w['text'])) {
+        return true;
+      }
+    } elseif ($w['text'] !== ''
+      && strpos($title . ' ' . $sub, $w['text']) !== false) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Evening page: programmes starting at/after 19:50 local (port.hu marker).
 function web_evening_start($date) {
   $dt = new DateTime($date . ' 19:50:00', new DateTimeZone('Europe/Budapest'));

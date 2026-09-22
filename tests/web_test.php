@@ -586,3 +586,36 @@ function test_web_views_and_routes() {
   t_web_curl($s['base'] . '/?token=WRONG', $code);
   t_eq($code, 403, 'wrong site token 403');
 }
+
+function test_live_title_and_channel_colors() {
+  require_once dirname(__DIR__) . '/pages/_render.php';
+  t_web_globals(array(), array());
+  $now = time();
+  $mk = function ($t) use ($now) {
+    return array('start_utc' => $now - 100, 'stop_utc' => $now + 3600,
+      'title' => $t, 'subtitle' => '', 'descr' => '', 'category' => '',
+      'rating' => '', 'star' => '', 'icon' => '', 'year' => '', 'episode' => '',
+      'film_url' => '');
+  };
+  $groups = array('RTL' => array($mk('Live Show')));
+  $names = array('RTL' => 'RTL');
+  $h = epg_table_h($groups, $names, $now, date('Y-m-d', $now));
+  t_ok(strpos($h, 'prog-item live"') !== false, 'horizontal live card class');
+  t_ok(strpos($h, '<div class="prog-title"><a href="') !== false,
+    'horizontal title wrapped for coloring');
+  $v = epg_list_v($groups, $names, $now, '2');
+  t_ok(strpos($v, '<li class="live"') !== false, 'vertical live item class');
+  t_ok(strpos($v, '<span class="ptitle"><a href="') !== false,
+    'vertical title wrapped for coloring');
+  // stylesheet carries both themes (structure smoke test; hues reviewed)
+  $css = file_get_contents(dirname(__DIR__) . '/style.css');
+  t_ok(strpos($css, '.prog-item.live .prog-title') !== false, 'live title rule');
+  t_ok(strpos($css, 'ul.progs li.live .ptitle') !== false, 'vertical live title rule');
+  t_ok(strpos($css, 'table.epgtable td.chan a') !== false, 'channel name rule (h)');
+  t_ok(strpos($css, 'table.vgrid th a') !== false, 'channel name rule (v)');
+  t_ok(strpos($css, 'body.dark ul.progs li.live .ptitle') !== false, 'dark live title rule');
+  t_ok(strpos($css, 'body.dark table.vgrid th a') !== false, 'dark channel rule');
+  t_ok(strpos($css, 'tr.zb-even td.tl .tlrel') !== false, 'zebra row strip rule');
+  t_ok(strpos($css, 'background: transparent; border: 1px solid #e0e0e0;') !== false,
+    'cards transparent so full-row zebra shows through');
+}
