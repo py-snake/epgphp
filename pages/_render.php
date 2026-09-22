@@ -245,7 +245,8 @@ function epg_list_v($groups, $names, $now, $zoom = null) {
   if ($zoom === null) {
     $zoom = function_exists('web_zoom_raw') ? web_zoom_raw() : null;
   }
-  $level = ($zoom === '0' || $zoom === '1') ? 1 : (($zoom === '3' || $zoom === '4') ? 3 : 2);
+  $level = function_exists('web_zoom_level') ? web_zoom_level($zoom)
+    : (($zoom === '0' || $zoom === '1') ? 1 : (($zoom === '3' || $zoom === '4') ? 3 : 2));
   $colw_px = function_exists('web_zoom_col_px') ? web_zoom_col_px($zoom) : 170;
   $minw = max(640, count($groups) * $colw_px);
   $colw = round(100 / max(1, count($groups)), 2);

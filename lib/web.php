@@ -199,26 +199,116 @@ function web_valid_date($s) {
   return web_today();
 }
 
-// Font size level (?font=1..5, default 3 = previous base size).
-// null = default, carried raw.
+// Font size: legacy levels (?font=1..5, frozen for old bookmarks) or a
+// percent offset (?font=-50..+200, 0 = normal). null = default, carried raw.
+// Legacy 1..5 win over the percent range, so old links keep working.
 function web_font_raw() {
-  if (isset($_GET['font']) && in_array((string)$_GET['font'], array('1', '2', '3', '4', '5'), true)) {
-    return (string)$_GET['font'];
+  if (!isset($_GET['font'])) {
+    return null;
   }
-  return null;
-}
-// Wide enough that a bottom scrollbar appears and shows stay readable.
-function web_zoom_raw() {
-  if (isset($_GET['zoom']) && in_array((string)$_GET['zoom'], array('0', '1', '2', '3', '4'), true)) {
-    return (string)$_GET['zoom'];
-  }
-  return null;
+  return web_font_valid((string)$_GET['font'], null);
 }
 
-// Timeline zoom: pixel width of the whole 24h strip (?zoom=0..4).
+// Validated font token or $default (builder use). Legacy 1..5 pass through
+// untouched; other ints in -50..+200 come back canonicalized.
+function web_font_valid($s, $default = '0') {
+  $s = trim((string)$s);
+  if (in_array($s, array('1', '2', '3', '4', '5'), true)) {
+    return $s;
+  }
+  if (preg_match('/^-?\d{1,4}$/', $s)) {
+    $n = (int)$s;
+    if ($n >= -50 && $n <= 200) {
+      return (string)$n;
+    }
+  }
+  return $default;
+}
+
+// Scale factor for new percent values, or null for default/legacy
+// (those render via the base stylesheet / fs1..fs5 classes).
+function web_font_scale($f = null) {
+  if ($f === null) {
+    $f = web_font_raw();
+  } else {
+    $f = (string)$f;
+  }
+  if ($f === null || $f === '' || $f === '0'
+    || in_array($f, array('1', '2', '3', '4', '5'), true)) {
+    return null;
+  }
+  if (!preg_match('/^-?\d+$/', $f)) {
+    return null;
+  }
+  return (100 + (int)$f) / 100;
+}
+
+// Dynamic font stylesheet for percent values (old-browser safe: plain CSS
+// text, no variables). Each component scales from its base size, rounded.
+function web_font_css($f = null) {
+  $s = web_font_scale($f);
+  if ($s === null) {
+    return '';
+  }
+  $px = function ($base) use ($s) {
+    return max(6, (int)round($base * $s));
+  };
+  return 'body{font-size:' . $px(14) . 'px;}'
+    . '.prog-item{font-size:' . $px(14) . 'px;height:' . $px(64) . 'px;}'
+    . '.tlrel{height:' . $px(72) . 'px;}'
+    . '.prog-item .prog-time{font-size:' . $px(12) . 'px;}'
+    . 'td.chan{font-size:' . $px(14) . 'px;}'
+    . 'ul.progs li{font-size:' . $px(14) . 'px;}'
+    . '.navtab a{font-size:' . $px(12) . 'px;}';
+}
+
+// Body-px preview for the settings help line (legacy table + computed).
+function web_font_preview_px($f) {
+  static $legacy = array('1' => 11, '2' => 12, '3' => 14, '4' => 17, '5' => 20);
+  $f = (string)$f;
+  if (isset($legacy[$f])) {
+    return $legacy[$f];
+  }
+  if (preg_match('/^-?\d+$/', $f)) {
+    return max(6, (int)round(14 * (100 + (int)$f) / 100));
+  }
+  return 14;
+}
+// Wide enough that a bottom scrollbar appears and shows stay readable.
+// Legacy levels (?zoom=0..4, frozen) or percent offset (?zoom=-75..+600).
+function web_zoom_raw() {
+  if (!isset($_GET['zoom'])) {
+    return null;
+  }
+  return web_zoom_valid((string)$_GET['zoom'], null);
+}
+
+// Validated zoom token or $default (builder use). Legacy 0..4 pass through
+// untouched (old bookmarks keep pixel-exact sizes); other ints in
+// -75..+600 come back canonicalized.
+function web_zoom_valid($s, $default = '0') {
+  $s = trim((string)$s);
+  if (in_array($s, array('0', '1', '2', '3', '4'), true)) {
+    return $s;
+  }
+  if (preg_match('/^-?\d{1,4}$/', $s)) {
+    $n = (int)$s;
+    if ($n >= -75 && $n <= 600) {
+      return (string)$n;
+    }
+  }
+  return $default;
+}
+
+// Timeline zoom: pixel width of the whole 24h strip.
 // Horizontal layout width. Vertical layout uses web_zoom_col_px().
-function web_zoom_px() {
-  $z = web_zoom_raw();
+// $z = null reads the request; legacy levels use the frozen table.
+function web_zoom_px($z = null) {
+  if ($z === null) {
+    $z = web_zoom_raw();
+  } else {
+    $z = (string)$z;
+  }
   if ($z === '0') {
     return 2400; // extra kicsi
   }
@@ -231,11 +321,22 @@ function web_zoom_px() {
   if ($z === '4') {
     return 12000; // extra nagy
   }
+  if ($z !== null && $z !== '' && $z !== '2' && preg_match('/^-?\d+$/', $z)) {
+    $px = (int)round(6000 * (100 + (int)$z) / 100);
+    if ($px < 1200) {
+      $px = 1200;
+    }
+    if ($px > 42000) {
+      $px = 42000;
+    }
+    return $px;
+  }
   return 6000; // default
 }
 
-// Vertical column width per channel (?zoom=0..4). Mirrors the horizontal
-// timeline ratios so "Méret" visibly scales both layouts.
+// Vertical column width per channel. Legacy levels use the frozen table,
+// percent values scale proportionally from the 170px base.
+// Mirrors the horizontal timeline so "Méret" visibly scales both layouts.
 function web_zoom_col_px($z = null) {
   if ($z === null) {
     $z = web_zoom_raw();
@@ -254,7 +355,44 @@ function web_zoom_col_px($z = null) {
   if ($z === '4') {
     return 260; // extra nagy
   }
+  if ($z !== null && $z !== '' && $z !== '2' && preg_match('/^-?\d+$/', $z)) {
+    $px = (int)round(170 * (100 + (int)$z) / 100);
+    if ($px < 80) {
+      $px = 80;
+    }
+    if ($px > 600) {
+      $px = 600;
+    }
+    return $px;
+  }
   return 170; // default (zoom=2 / unset)
+}
+
+// Vertical detail level: legacy levels keep their meaning, percent values
+// switch at -25/+35 (reproduces the legacy points: -60/-40 -> 1, 0 -> 2,
+// +50/+100 -> 3).
+function web_zoom_level($z = null) {
+  if ($z === null) {
+    $z = function_exists('web_zoom_raw') ? web_zoom_raw() : null;
+  } else {
+    $z = (string)$z;
+  }
+  if ($z === '0' || $z === '1') {
+    return 1;
+  }
+  if ($z === '3' || $z === '4') {
+    return 3;
+  }
+  if ($z !== null && $z !== '' && $z !== '2' && preg_match('/^-?\d+$/', $z)) {
+    $n = (int)$z;
+    if ($n <= -25) {
+      return 1;
+    }
+    if ($n >= 35) {
+      return 3;
+    }
+  }
+  return 2;
 }
 
 // Effective browser-refresh, minutes. ?refresh=N wins (0..120, 0 = off),
@@ -487,14 +625,17 @@ function web_cat_label($cat) {
   return isset($labels[$cat]) ? $labels[$cat] : $cat;
 }
 
-// Watchlist (?watch=): titles separated by newline or comma, each
-// optionally prefixed with e: (exact, the default) or p: (partial/
-// substring), case-insensitive:
-//   ?watch=e:Híradó%0AColumbo%0Ap:Mese
-// A literal leading "e:"/"p:" escapes with a backslash ("\e:X" = exact
-// title "e:X"). Matching is case- and accent-insensitive, against title +
-// subtitle. Caps: 50 items, ~2000 chars total (stays far under the ~8k
-// request-line limit even with the rest of the state params).
+// Watchlist (?watch=): one title per line (newline-separated, so titles
+// may contain commas, dashes and other punctuation), each optionally
+// prefixed with e: (exact) or p: (partial/substring), case-insensitive:
+//   ?watch=Országos híradó%0Ap:Mese%0Ae:RTL Híradó
+// No prefix = match from the START of the title (the end may differ):
+// "Országos híradó" hits "Országos híradó magyar nyelven" but not "Híradó".
+// "*" is a wildcard (any text, even empty). A literal leading "e:"/"p:"
+// escapes with a backslash ("\e:X" = title "e:X", default start-match).
+// Matching is case- and accent-insensitive, title only (never subtitle).
+// Caps: 50 items, ~2000 chars total (stays far under the ~8k request-line
+// limit even with the rest of the state params).
 function web_watch_norm($s) {
   $s = function_exists('mb_strtolower')
     ? mb_strtolower((string)$s, 'UTF-8') : strtolower((string)$s);
@@ -508,7 +649,7 @@ function web_watch_norm($s) {
 }
 
 function web_watch_parse($raw) {
-  $items = is_array($raw) ? $raw : preg_split('/[\r\n,]+/', (string)$raw);
+  $items = is_array($raw) ? $raw : preg_split('/[\r\n]+/', (string)$raw);
   $out = array();
   $len = 0;
   foreach ($items as $it) {
@@ -516,11 +657,11 @@ function web_watch_parse($raw) {
     if ($it === '') {
       continue;
     }
-    $exact = true;
+    $mode = 'prefix'; // default: match from the start of the title
     if (preg_match('/^\\\\([eEpP]:)/', $it)) {
-      $it = substr($it, 1); // escaped literal: "\e:X" -> exact title "e:X"
+      $it = substr($it, 1); // escaped literal: "\e:X" -> title "e:X"
     } elseif (preg_match('/^([eEpP]):(.*)$/s', $it, $m)) {
-      $exact = (strtolower($m[1]) === 'e');
+      $mode = (strtolower($m[1]) === 'e') ? 'exact' : 'partial';
       $it = trim($m[2]);
     }
     $t = web_watch_norm($it);
@@ -531,7 +672,7 @@ function web_watch_parse($raw) {
     if ($len > 2000) {
       break;
     }
-    $out[] = array('exact' => $exact, 'text' => $t);
+    $out[] = array('mode' => $mode, 'text' => $t);
     if (count($out) >= 50) {
       break;
     }
@@ -544,19 +685,41 @@ function web_watch_match($row, array $watch) {
     return false;
   }
   $title = web_watch_norm(isset($row['title']) ? $row['title'] : '');
-  $sub = web_watch_norm(isset($row['subtitle']) ? $row['subtitle'] : '');
+  if ($title === '') {
+    return false;
+  }
   foreach ($watch as $w) {
-    if ($w['exact']) {
-      if (($title !== '' && $title === $w['text'])
-        || ($sub !== '' && $sub === $w['text'])) {
-        return true;
-      }
-    } elseif ($w['text'] !== ''
-      && strpos($title . ' ' . $sub, $w['text']) !== false) {
+    if (web_watch_hit($title, $w)) {
       return true;
     }
   }
   return false;
+}
+
+// Single pattern against an already-normalized title. Unescaped "*" spans
+// any text ("\*" stays literal). Exact anchors both ends, prefix (default)
+// anchors the start, partial searches anywhere.
+function web_watch_hit($title, array $w) {
+  if (!isset($w['text']) || $w['text'] === '' || !isset($w['mode'])) {
+    return false;
+  }
+  $parts = preg_split('/(?<!\\\\)\\*/', $w['text']);
+  if ($parts === false) {
+    return false;
+  }
+  foreach ($parts as &$pt) {
+    $pt = str_replace('\\*', '*', $pt);
+  }
+  unset($pt);
+  $re = implode('.*', array_map(function ($pt) {
+    return preg_quote($pt, '/');
+  }, $parts));
+  if ($w['mode'] === 'exact') {
+    $re = '^' . $re . '$';
+  } elseif ($w['mode'] === 'prefix') {
+    $re = '^' . $re;
+  }
+  return preg_match('/' . $re . '/', $title) === 1;
 }
 
 // Evening page: programmes starting at/after 19:50 local (port.hu marker).

@@ -349,6 +349,13 @@ function test_site_settings_builds_urls() {
     'default level adds no font class');
   list(, $body) = t_site_curl($s['base'] . '/settings?' . $T . '&b_font=1&b_ch[]=RTL', $code);
   t_ok(strpos($body, 'font=1') !== false, 'built URL carries font size');
+  // numeric sizing: text inputs with help + px preview, built URL carries them
+  t_ok(strpos($body, 'name="b_zoom"') !== false, 'zoom is a numeric input');
+  t_ok(strpos($body, 'name="b_font"') !== false, 'font is a numeric input');
+  list(, $body) = t_site_curl($s['base'] . '/settings?' . $T
+    . '&b_zoom=-40&b_font=21&b_ch[]=RTL', $code);
+  t_ok(strpos($body, 'zoom=-40') !== false, 'built URL carries numeric zoom');
+  t_ok(strpos($body, 'font=21') !== false, 'built URL carries numeric font');
   // refresh select honors config default (off) and explicit choice
   t_ok(preg_match('~name="b_refresh"[^>]*value="0"~', $body) === 1, 'refresh default off');
   list(, $body) = t_site_curl($s['base'] . '/settings?' . $T . '&b_refresh=15', $code);
@@ -358,6 +365,16 @@ function test_site_settings_builds_urls() {
   list(, $body) = t_site_curl($s['base'] . '/settings?' . $T
     . '&b_type=epg&b_ch[]=RTL&b_offset=-30', $code);
   t_ok(strpos($body, 'offset=-30') !== false, 'result URL carries offset');
+  // "Megnyitás" submit: 302 straight to the built guide URL (no result page)
+  list($headers, ) = t_site_curl($s['base'] . '/settings?' . $T
+    . '&b_type=epg&b_ch[]=RTL&b_go=1', $code);
+  t_eq($code, 302, 'b_go redirects');
+  t_ok(stripos($headers, 'Location:') !== false
+    && strpos($headers, 'ch=RTL') !== false, 'redirect targets built guide URL');
+  // detail type has no single URL: b_go renders the picker instead
+  list(, $body) = t_site_curl($s['base'] . '/settings?' . $T
+    . '&b_type=detail&b_ch[]=RTL&b_go=1', $code);
+  t_eq($code, 200, 'b_go without buildable URL renders page');
   // settings self-links keep raw refresh (provider rows, detail browser)
   list(, $body) = t_site_curl($s['base'] . '/settings?' . $T . '&refresh=5', $code);
   preg_match_all('~href="([^"]*(?:b_provider|b_type=detail)[^"]*)"~', $body, $mm);

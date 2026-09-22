@@ -196,8 +196,22 @@ function test_web_font() {
     t_web_globals(array(), array('font' => $lv));
     t_eq(web_font_raw(), $lv, "level $lv valid");
   }
-  t_web_globals(array(), array('font' => '9'));
+  t_web_globals(array(), array('font' => '999'));
+  t_eq(web_font_raw(), null, 'out-of-range ignored');
+  t_web_globals(array(), array('font' => 'abc'));
   t_eq(web_font_raw(), null, 'garbage ignored');
+  // percent values: -21 ~ old extra small (11px), +43 ~ old extra large
+  t_web_globals(array(), array('font' => '-21'));
+  t_eq(web_font_raw(), '-21', 'percent kept raw');
+  t_eq(web_font_preview_px('-21'), 11, 'preview matches legacy point');
+  t_eq(web_font_scale(), 0.79, 'scale factor');
+  $css = web_font_css();
+  t_ok(strpos($css, 'body{font-size:11px;}') !== false, 'dynamic block body size');
+  t_ok(strpos($css, '.tlrel{height:57px;}') !== false, 'dynamic block row height');
+  t_eq(web_font_css('3'), '', 'legacy renders no block');
+  t_eq(web_font_css('0'), '', 'default renders no block');
+  t_eq(web_font_valid('abc', '0'), '0', 'builder default on garbage');
+  t_eq(web_font_valid('250', '0'), '0', 'builder default out of range');
   // carried in links when set (via WCARRY, like home/channel pages do)
   t_web_globals(array(), array());
   $GLOBALS['WCARRY'] = array();
@@ -213,9 +227,26 @@ function test_web_zoom() {  t_web_globals(array(), array());
   t_eq(web_zoom_px(), 3600, 'zoom 1 = 3600px');
   t_web_globals(array(), array('zoom' => '3'));
   t_eq(web_zoom_px(), 9000, 'zoom 3 = 9000px');
-  t_web_globals(array(), array('zoom' => '9'));
-  t_eq(web_zoom_px(), 6000, 'garbage zoom falls back');
+  t_web_globals(array(), array('zoom' => '9999'));
+  t_eq(web_zoom_px(), 6000, 'out-of-range zoom falls back');
+  t_eq(web_zoom_raw(), null, 'out-of-range zoom not carried');
+  t_web_globals(array(), array('zoom' => 'abc'));
   t_eq(web_zoom_raw(), null, 'garbage zoom not carried');
+  // percent values: legacy points reproduce horizontal widths exactly
+  t_web_globals(array(), array('zoom' => '-60'));
+  t_eq(web_zoom_px(), 2400, 'pct -60 = old extra small');
+  t_eq(web_zoom_col_px(), 80, 'col clamped at 80');
+  t_web_globals(array(), array('zoom' => '50'));
+  t_eq(web_zoom_px(), 9000, 'pct +50 = old large');
+  t_eq(web_zoom_col_px(), 255, 'col scales proportionally');
+  t_web_globals(array(), array('zoom' => '600'));
+  t_eq(web_zoom_raw(), '600', 'max range kept');
+  t_eq(web_zoom_px(), 42000, 'pct +600 max width');
+  t_eq(web_zoom_level('-60'), 1, 'level small');
+  t_eq(web_zoom_level('50'), 3, 'level large');
+  t_eq(web_zoom_level('0'), 1, 'legacy level kept');
+  t_eq(web_zoom_level('2'), 2, 'legacy default level');
+  t_eq(web_zoom_valid('xyz', '0'), '0', 'builder default on garbage');
   require_once dirname(__DIR__) . '/pages/_render.php';
   $html = epg_table_h(array(), array(), time(), '2026-09-18');
   // empty message path has no wrap; render one row to check inline width

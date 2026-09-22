@@ -19,6 +19,8 @@
 <?php endif; ?>
 <script type="application/ld+json">{"@context":"http://schema.org","@type":"WebSite","name":"EPG"}</script>
 <link rel="stylesheet" type="text/css" href="<?php echo h(web_asset('/style.css') . '?v=' . urlencode(isset($CFG['version']) ? $CFG['version'] : '1')); ?>">
+<?php $__fcss = function_exists('web_font_css') ? web_font_css() : ''; ?>
+<?php if ($__fcss !== ''): ?><style type="text/css"><?php echo $__fcss; ?></style><?php endif; ?>
 </head>
 <body<?php
 $__cls = array();

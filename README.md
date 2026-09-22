@@ -108,12 +108,18 @@ Kapcsolók a `config.php`-ben: `providers`, `keep_past`, `keep_future`,
 
 - `/` – egyoldalas EPG rács (`?cat=`, `?ch=`, `?date=`),
 - `?view=h|v` – vízszintes idővonal / függőleges lista,
-- `?zoom=0..4` – méret (vízszintes: 2400/3600/6000/9000/12000px, függőleges: 110/140/170/210/260px oszlop),
+- `?zoom=N` – méret százalékban, `0` = normál (`-75…+600`; pl. `-60` extra
+  kicsi, `-40` kicsi, `+50` nagy, `+100` extra nagy; a `0..4` régi linkek
+  pixel-pontosan a régi méreteket adják),
+- `?font=M` – betűméret százalékban, `0` = normál (`-50…+200`; pl. `-21`
+  extra kicsi, `-14` kicsi, `+21` nagy, `+43` extra nagy; az `1..5` régi
+  linkek a régi osztályokkal renderelnek),
 - `?provider=` – szolgáltató-választás (fallback-lánc automatikus),
 - `?refresh=N` – böngésző-frissítés percben (0 = ki, alapból ki),
-- `?watch=e:Híradó,Columbo,p:Mese` – figyelt címek (sor- vagy vesszőtagolt):
-  a találat kártyája halvány piros hátteret kap (cím+alcím, ékezet/kisbetű-független;
-  sima/`e:` = pontos, `p:` = részleges egyezés),
+- `?watch=` – figyelt címek, soronként egy (az URL-ben `%0A`): a találat
+  címe erős piros (címben keres, ékezet/kisbetű-független; prefix nélkül
+  cím-eleji egyezés, `e:` = pontos, `p:` = részleges; `*` wildcard, `\*`
+  literális csillag; a cím tartalmazhat vesszőt, kötőjelet),
 - `/tvmusor/{SLUG}[/{date}]` – egy csatorna napja,
 - `/musor/{SLUG}/{start}` – műsor-részletező,
 - `/settings` – beállítások + URL-építő (szolgáltatók, csatornák, dátumok

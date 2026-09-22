@@ -35,14 +35,14 @@ if (web_cat_keywords($b_cat) === false) {
 }
 $b_view = isset($_GET['b_view']) ? ((string)$_GET['b_view'] === 'v' ? 'v' : 'h')
   : ((isset($_GET['view']) && (string)$_GET['view'] === 'v') ? 'v' : 'h');
-$b_zoom = isset($_GET['b_zoom']) && in_array((string)$_GET['b_zoom'], array('0', '1', '2', '3', '4'), true)
-  ? (string)$_GET['b_zoom']
-  : ((isset($_GET['zoom']) && in_array((string)$_GET['zoom'], array('0', '1', '2', '3', '4'), true))
-    ? (string)$_GET['zoom'] : '2');
-$b_font = isset($_GET['b_font']) && in_array((string)$_GET['b_font'], array('1', '2', '3', '4', '5'), true)
-  ? (string)$_GET['b_font']
-  : ((isset($_GET['font']) && in_array((string)$_GET['font'], array('1', '2', '3', '4', '5'), true))
-    ? (string)$_GET['font'] : '3');
+$b_zoom = isset($_GET['b_zoom']) ? web_zoom_valid($_GET['b_zoom'], null) : null;
+if ($b_zoom === null) {
+  $b_zoom = web_zoom_valid(isset($_GET['zoom']) ? (string)$_GET['zoom'] : '0', '0');
+}
+$b_font = isset($_GET['b_font']) ? web_font_valid($_GET['b_font'], null) : null;
+if ($b_font === null) {
+  $b_font = web_font_valid(isset($_GET['font']) ? (string)$_GET['font'] : '0', '0');
+}
 // refresh minutes, manually typed (falls back to plain ?refresh=, then default)
 $b_ref_raw = isset($_GET['b_refresh']) ? (string)$_GET['b_refresh']
   : (isset($_GET['refresh']) ? (string)$_GET['refresh'] : null);
@@ -181,20 +181,14 @@ echo '<label>Nézet: <select name="b_view">'
   . '<option value="h"' . ($b_view === 'h' ? ' selected' : '') . '>Vízszintes</option>'
   . '<option value="v"' . ($b_view === 'v' ? ' selected' : '') . '>Függőleges</option>'
   . '</select></label> ';
-echo '<label>Méret: <select name="b_zoom">'
-  . '<option value="0"' . ($b_zoom === '0' ? ' selected' : '') . '>Extra kicsi</option>'
-  . '<option value="1"' . ($b_zoom === '1' ? ' selected' : '') . '>Kicsi</option>'
-  . '<option value="2"' . ($b_zoom === '2' ? ' selected' : '') . '>Normál</option>'
-  . '<option value="3"' . ($b_zoom === '3' ? ' selected' : '') . '>Nagy</option>'
-  . '<option value="4"' . ($b_zoom === '4' ? ' selected' : '') . '>Extra nagy</option>'
-  . '</select></label> ';
-echo '<label>Betűméret: <select name="b_font">'
-  . '<option value="1"' . ($b_font === '1' ? ' selected' : '') . '>Extra kicsi</option>'
-  . '<option value="2"' . ($b_font === '2' ? ' selected' : '') . '>Kicsi</option>'
-  . '<option value="3"' . ($b_font === '3' ? ' selected' : '') . '>Normál</option>'
-  . '<option value="4"' . ($b_font === '4' ? ' selected' : '') . '>Nagy</option>'
-  . '<option value="5"' . ($b_font === '5' ? ' selected' : '') . '>Extra nagy</option>'
-  . '</select></label> ';
+echo '<label>Méret: <input type="text" name="b_zoom" size="5" value="'
+  . h($b_zoom) . '"> '
+  . '<span class="tiny">-75…+600, 0 = normál (pl. -60 extra kicsi, -40 kicsi, +50 nagy, +100 extra nagy; most ≈'
+  . h((string)web_zoom_px($b_zoom)) . 'px)</span></label> ';
+echo '<label>Betűméret: <input type="text" name="b_font" size="5" value="'
+  . h($b_font) . '"> '
+  . '<span class="tiny">-50…+200, 0 = normál (pl. -21 extra kicsi, -14 kicsi, +21 nagy, +43 extra nagy; most ≈'
+  . h((string)web_font_preview_px($b_font)) . 'px)</span></label> ';
 echo '<label><input type="checkbox" name="theme" value="dark"'
   . ($WSTATE['theme'] === 'dark' ? ' checked' : '') . '> Sötét mód</label> ';
 echo '<label>Frissítés (perc, 0 = ki): <input type="text" name="b_refresh" size="4" value="'
@@ -202,8 +196,8 @@ echo '<label>Frissítés (perc, 0 = ki): <input type="text" name="b_refresh" siz
 echo '<label>Időkorrekció (perc): <input type="text" name="b_offset" size="5" value="'
   . h($b_off) . '"></label> ';
 echo '<label>Figyelt műsorok:<br><textarea name="b_watch" rows="4" cols="40">'
-  . h($b_watch) . '</textarea><br><span class="tiny">soronként egy: e:Híradó (pontos), '
-  . 'p:Mese (részleges) — prefix nélkül pontos</span></label></p>';
+  . h($b_watch) . '</textarea><br><span class="tiny">soronként egy cím eleje '
+  . '(pl. országos híradó); e: pontos, p: részleges egyezés</span></label></p>';
 echo '<div class="checks-grid">';
 foreach (web_sorted_channels($pdo, $b_provider) as $slug => $nm) {
   echo '<label><input type="checkbox" name="b_ch[]" value="' . h($slug) . '"'
@@ -211,12 +205,13 @@ foreach (web_sorted_channels($pdo, $b_provider) as $slug => $nm) {
     . h($nm) . '</label>';
 }
 echo '</div><div class="clear"></div>';
-echo '<p><input type="submit" value="URL mutatása"></p></form>';
+echo '<p><input type="submit" value="URL mutatása"> '
+  . '<input type="submit" name="b_go" value="Megnyitás"></p></form>';
 
 // ---- 4. result ----
 $bst = array('provider' => $b_provider, 'view' => $b_view,
-  'zoom' => ($b_zoom === '2' ? null : $b_zoom),
-  'font' => ($b_font === '3' ? null : $b_font),
+  'zoom' => ($b_zoom === '0' ? null : $b_zoom),
+  'font' => ($b_font === '0' ? null : $b_font),
   'theme' => ($WSTATE['theme'] === 'dark' ? 'dark' : null),
   'refresh' => ($b_ref == (string)$CFG['refresh_mins'] ? null : $b_ref),
   'offset' => ($b_off !== '0' ? $b_off : null));
@@ -244,6 +239,12 @@ echo '<h2 class="section-title">Eredmény</h2>';
 if ($built !== '') {
   // absolute URL with domain: copy-paste ready anywhere
   $absolute = web_abs_built($CFG, $base_url, $built);
+  if (isset($_GET['b_go'])) {
+    // "Megnyitás" submit: skip this page, open the fresh URL at once.
+    // Safe here: index.php buffers page output, so no body went out yet.
+    header('Location: ' . $absolute, true, 302);
+    exit;
+  }
   echo '<p><label>Kész URL (másolható):<br>'
     . '<input type="text" class="urlbox" readonly size="80" value="' . h($absolute) . '"></label></p>';
   echo '<p><a class="btn" href="' . h($absolute) . '">Megnyitás &gt;</a></p>';
@@ -357,8 +358,8 @@ $GLOBALS['WCARRY'] = array(
   'cat' => $b_cat === 'mind' ? null : $b_cat,
   'ch' => count($b_ch) ? implode(',', $b_ch) : null,
   'date' => $b_date === web_today() ? null : $b_date,
-  'zoom' => ($b_zoom === '2' ? null : $b_zoom),
-  'font' => ($b_font === '3' ? null : $b_font),
+  'zoom' => ($b_zoom === '0' ? null : $b_zoom),
+  'font' => ($b_font === '0' ? null : $b_font),
   'refresh' => ($b_ref == (string)$CFG['refresh_mins'] ? null : $b_ref),
   'offset' => ($b_off !== '0' ? $b_off : null),
   'watch' => ($b_watch !== '' ? $b_watch : null),
